@@ -91,6 +91,14 @@ document.addEventListener('DOMContentLoaded', () => {
         saveState();
     });
 
+    // ストレージクリアボタン
+    document.getElementById('clearStorageBtn').addEventListener('click', () => {
+        if (confirm('保存データをすべてリセットしますか？')) {
+            localStorage.removeItem('iriam-state');
+            location.reload();
+        }
+    });
+
     // 計算ボタン
     document.getElementById('calculateButton').addEventListener('click', calculateResults);
 
