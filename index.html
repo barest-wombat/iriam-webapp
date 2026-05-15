@@ -2,8 +2,14 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IRIAMランク管理Webアプリ</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#7a4ce3">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="IRIAMランク">
+    <title>IRIAMランク管理</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,9 +17,9 @@
         <div class="header-row">
             <h1>IRIAMランク管理ツール</h1>
             <div class="theme-controls" id="themeControls">
-                <button class="theme-btn active" data-value="auto">デバイス</button>
-                <button class="theme-btn" data-value="light">ライト</button>
-                <button class="theme-btn" data-value="dark">ダーク</button>
+                <button class="theme-btn active" data-value="auto"  title="デバイスに合わせる">◑</button>
+                <button class="theme-btn"        data-value="light" title="ライトモード">☀</button>
+                <button class="theme-btn"        data-value="dark"  title="ダークモード">☾</button>
             </div>
         </div>
 
@@ -43,33 +49,37 @@
 
         <section class="plan-section">
             <h2>7日間の予定入力</h2>
-            <table id="planTable">
-                <thead>
-                    <tr>
-                        <th>日</th>
-                        <th>予定(+)</th>
-                        <th>スキップパス使用</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+            <div class="table-scroll">
+                <table id="planTable">
+                    <thead>
+                        <tr>
+                            <th>日</th>
+                            <th>予定(+)</th>
+                            <th>スキップ</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </section>
 
         <button id="calculateButton">計算</button>
 
         <section class="result-section">
             <h2>計算結果</h2>
-            <table id="resultTable">
-                <thead>
-                    <tr>
-                        <th>日</th>
-                        <th>翌日ランクスコア</th>
-                        <th>翌日ランク</th>
-                        <th>残りスキップパス</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+            <div class="table-scroll">
+                <table id="resultTable">
+                    <thead>
+                        <tr>
+                            <th>日</th>
+                            <th>翌日ランクスコア</th>
+                            <th>翌日ランク</th>
+                            <th>残りスキップ</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </section>
 
         <section class="card-section">
@@ -88,9 +98,7 @@
                 </div>
                 <div class="daily-score">
                     デイリーランクスコア<br><span id="dailyScore">+--</span>
-                </div>
-                <div class="support-points">
-                    応援ポイント<br><span id="supportPoints">--</span>
+                    <div id="dailyTimeLeft" class="daily-time-left" style="display:none"></div>
                 </div>
             </div>
         </section>
