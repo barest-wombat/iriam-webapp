@@ -42,3 +42,10 @@ out/
 .yarn/unplugged
 .yarn/install-state.gz
 .pnp.*
+
+
+###
+
+*.png
+*.PNG
+*.webp
