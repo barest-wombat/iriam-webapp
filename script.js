@@ -61,29 +61,38 @@ document.addEventListener('DOMContentLoaded', () => {
     updateDaysLeftLabel();
     updateSkipPassesLabel();
 
+    // 初期スライダー塗りを適用
+    ['currentRankSlider', 'currentScoreSlider', 'daysLeftSlider', 'skipPassesSlider'].forEach(id => {
+        updateSliderFill(document.getElementById(id));
+    });
+
     // ランクスライダー
-    document.getElementById('currentRankSlider').addEventListener('input', () => {
+    document.getElementById('currentRankSlider').addEventListener('input', e => {
         updateRankLabel();
+        updateSliderFill(e.target);
         saveState();
     });
 
     // スコアスライダー
-    document.getElementById('currentScoreSlider').addEventListener('input', () => {
+    document.getElementById('currentScoreSlider').addEventListener('input', e => {
         updateScoreLabel();
+        updateSliderFill(e.target);
         saveState();
     });
 
     // 残り日数スライダー（変更時に対応日付へスクロール）
-    document.getElementById('daysLeftSlider').addEventListener('input', () => {
+    document.getElementById('daysLeftSlider').addEventListener('input', e => {
         updateDaysLeftLabel();
+        updateSliderFill(e.target);
         const targetDate = getDateStr(document.getElementById('startDate').value, getDaysLeft() - 1);
         scrollToDate(targetDate);
         saveState();
     });
 
     // スキップパスラダー
-    document.getElementById('skipPassesSlider').addEventListener('input', () => {
+    document.getElementById('skipPassesSlider').addEventListener('input', e => {
         updateSkipPassesLabel();
+        updateSliderFill(e.target);
         saveState();
     });
 
@@ -123,6 +132,12 @@ function getRank()       { return RANK_VALUES[parseInt(document.getElementById('
 function getScore()      { return parseInt(document.getElementById('currentScoreSlider').value, 10) || 0; }
 function getDaysLeft()   { return parseInt(document.getElementById('daysLeftSlider').value, 10) || 7; }
 function getSkipPasses() { return parseInt(document.getElementById('skipPassesSlider').value, 10) || 0; }
+
+// ===== スライダー塗り更新 =====
+function updateSliderFill(slider) {
+    const pct = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+    slider.style.setProperty('--fill-pct', pct + '%');
+}
 
 // ===== スライダーラベル更新 =====
 function updateRankLabel() {
