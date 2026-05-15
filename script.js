@@ -44,14 +44,16 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('currentScoreSlider').value = Math.min(18, Math.max(0, saved.score ?? 0));
         document.getElementById('daysLeftSlider').value     = Math.min(7,  Math.max(1, saved.daysLeft ?? 7));
         document.getElementById('skipPassesSlider').value   = Math.min(10, Math.max(0, saved.skipPasses ?? 0));
-        buildPlanTable(todayStr(), saved.planByDate || {});
+        buildCalendarTable(saved.planByDate || {});
     } else {
         document.getElementById('currentRankSlider').value  = RANK_VALUES.indexOf('B2');
         document.getElementById('currentScoreSlider').value = 0;
         document.getElementById('daysLeftSlider').value     = 7;
         document.getElementById('skipPassesSlider').value   = 0;
-        buildPlanTable(todayStr(), {});
+        buildCalendarTable({});
     }
+    // 初期表示は今日の行にスクロール
+    setTimeout(() => scrollToDate(todayStr()), 0);
 
     // 初期ラベルを更新
     updateRankLabel();
@@ -71,10 +73,11 @@ document.addEventListener('DOMContentLoaded', () => {
         saveState();
     });
 
-    // 残り日数スライダー（変更時にスクロールアニメーション）
+    // 残り日数スライダー（変更時に対応日付へスクロール）
     document.getElementById('daysLeftSlider').addEventListener('input', () => {
         updateDaysLeftLabel();
-        scrollToPlanRow(getDaysLeft());
+        const targetDate = getDateStr(document.getElementById('startDate').value, getDaysLeft() - 1);
+        scrollToDate(targetDate);
         saveState();
     });
 
@@ -84,16 +87,15 @@ document.addEventListener('DOMContentLoaded', () => {
         saveState();
     });
 
-    // 開始日変更
+    // 開始日変更（その日付の行にスクロール）
     document.getElementById('startDate').addEventListener('change', () => {
-        const st = loadState();
-        buildPlanTable(document.getElementById('startDate').value, st?.planByDate || {});
+        scrollToDate(document.getElementById('startDate').value);
         saveState();
     });
 
     // ストレージクリアボタン
     document.getElementById('clearStorageBtn').addEventListener('click', () => {
-        if (confirm('保存データをすべてリセットしますか？')) {
+        if (confirm('このアプリの入力データはあなたのスマホ・PCの中にだけ保存されています。\nリセットすると入力した内容がすべて消えてしまいます。\n本当にリセットしますか？')) {
             localStorage.removeItem('iriam-state');
             location.reload();
         }
@@ -168,6 +170,12 @@ function getDateStr(baseDateStr, offset) {
     return toLocalDateStr(date);
 }
 
+function formatDateStr(dateStr) {
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    const d = new Date(dateStr + 'T00:00:00');
+    return `${d.getMonth() + 1}/${d.getDate()}（${dayNames[d.getDay()]}）`;
+}
+
 function getTimeUntilMidnight() {
     const now = new Date();
     const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
@@ -204,11 +212,11 @@ function updateButtonGradient(rank) {
 
 // ===== localStorage =====
 function saveState() {
-    const startDateStr = document.getElementById('startDate').value;
-    const planRows = document.getElementById('planTable').querySelector('tbody').rows;
+    const allRows = document.getElementById('planTable').querySelector('tbody').rows;
     const planByDate = {};
-    Array.from(planRows).forEach((row, i) => {
-        const dateStr = row.cells[0].dataset.date || getDateStr(startDateStr, i);
+    Array.from(allRows).forEach(row => {
+        const dateStr = row.dataset.date;
+        if (!dateStr) return;
         const slider = row.cells[1].querySelector('input[type="range"]');
         planByDate[dateStr] = {
             point: slider ? POINT_VALUES[parseInt(slider.value, 10)] : 0,
@@ -232,36 +240,30 @@ function loadState() {
     } catch { return null; }
 }
 
-// ===== 予定テーブル構築 =====
-function buildPlanTable(startDateStr, planByDate) {
+// ===== カレンダー形式の予定テーブル構築（過去7日＋未来30日、一度だけ生成） =====
+function buildCalendarTable(planByDate) {
     const tbody = document.getElementById('planTable').querySelector('tbody');
-
-    // 既存行の値を日付キーで収集（開始日変更時に日付をまたいで引き継ぎ）
-    const merged = Object.assign({}, planByDate);
-    Array.from(tbody.rows).forEach(row => {
-        const dateStr = row.cells[0].dataset.date;
-        const slider  = row.cells[1].querySelector('input[type="range"]');
-        if (dateStr && slider) {
-            merged[dateStr] = {
-                point: POINT_VALUES[parseInt(slider.value, 10)],
-                skip:  row.cells[2].querySelector('input[type="checkbox"]').checked,
-            };
-        }
-    });
-
     tbody.innerHTML = '';
 
-    for (let i = 0; i < 7; i++) {
-        const dateStr = getDateStr(startDateStr, i);
-        const savedEntry = merged[dateStr];
-        const isToday = dateStr === todayStr();
+    const today    = todayStr();
+    const baseDate = new Date(today + 'T00:00:00');
+    const PAST   = 7;
+    const FUTURE = 30;
+
+    for (let i = -PAST; i <= FUTURE; i++) {
+        const d = new Date(baseDate);
+        d.setDate(d.getDate() + i);
+        const dateStr    = toLocalDateStr(d);
+        const savedEntry = planByDate[dateStr];
+        const isToday    = dateStr === today;
+
         const tr = document.createElement('tr');
+        tr.dataset.date = dateStr;
         if (isToday) tr.classList.add('today-row');
 
         // 日付セル
         const dayTd = document.createElement('td');
-        dayTd.textContent = formatDateWithOffset(startDateStr, i);
-        dayTd.dataset.date = dateStr;
+        dayTd.textContent = formatDateStr(dateStr);
         tr.appendChild(dayTd);
 
         // ポイントスライダーセル
@@ -380,14 +382,13 @@ function handleArrowKey(e) {
     if (interactive) interactive.focus();
 }
 
-// ===== スクロールアニメーション =====
-function scrollToPlanRow(daysLeft) {
+// ===== 日付指定スクロールアニメーション =====
+function scrollToDate(dateStr) {
     const tbody = document.getElementById('planTable').querySelector('tbody');
-    if (!tbody.rows.length) return;
-    const targetIdx = Math.min(daysLeft - 1, tbody.rows.length - 1);
-    const row = tbody.rows[targetIdx];
+    const row = Array.from(tbody.rows).find(r => r.dataset.date === dateStr);
+    if (!row) return;
     Array.from(tbody.rows).forEach(r => r.classList.remove('scroll-target'));
-    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    row.scrollIntoView({ behavior: 'smooth', block: 'start' });
     row.classList.add('scroll-target');
     row.addEventListener('animationend', () => row.classList.remove('scroll-target'), { once: true });
 }
@@ -430,14 +431,20 @@ function calculateResults() {
     const resultTbody = document.getElementById('resultTable').querySelector('tbody');
     resultTbody.innerHTML = '';
 
-    const planRows = document.getElementById('planTable').querySelector('tbody').rows;
+    const allRows     = Array.from(document.getElementById('planTable').querySelector('tbody').rows);
+    const startRowIdx = allRows.findIndex(r => r.dataset.date === startDateStr);
+    if (startRowIdx === -1) {
+        alert('開始日が表の範囲外です。表示範囲内（過去7日〜未来30日）で設定してください。');
+        return;
+    }
+    const planRows = allRows.slice(startRowIdx, startRowIdx + 7);
     const dayStates = [];
 
     for (let i = 0; i < planRows.length; i++) {
         const slider      = planRows[i].cells[1].querySelector('input[type="range"]');
         const dailyPoints = slider ? POINT_VALUES[parseInt(slider.value, 10)] : 0;
         const skipUsed    = planRows[i].cells[2].querySelector('input[type="checkbox"]').checked;
-        const date        = getDateStr(startDateStr, i);
+        const date        = planRows[i].dataset.date;
 
         // この日の開始時点の状態を記録（行に表示する値）
         dayStates.push({ rank: currentRank, score: currentScore, daysLeft, dailyPoints, skipPasses, date });
