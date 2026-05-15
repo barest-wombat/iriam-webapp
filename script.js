@@ -80,12 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
         saveState();
     });
 
-    // 残り日数スライダー（変更時に対応日付へスクロール）
+    // 残り日数スライダー
     document.getElementById('daysLeftSlider').addEventListener('input', e => {
         updateDaysLeftLabel();
         updateSliderFill(e.target);
-        const targetDate = getDateStr(document.getElementById('startDate').value, getDaysLeft() - 1);
-        scrollToDate(targetDate);
         saveState();
     });
 
