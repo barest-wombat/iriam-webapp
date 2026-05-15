@@ -15,6 +15,7 @@
     --focus-outline: #4a7aff;
     --shadow: rgba(0, 0, 0, 0.1);
     --btn-primary: #7a4ce3;
+    --today-row-bg: #fffbea;
 
     --theme-ctrl-bg: #e8eaf0;
     --theme-ctrl-border: #c8cadc;
@@ -41,6 +42,7 @@
     --focus-outline: #6a8aff;
     --shadow: rgba(0, 0, 0, 0.4);
     --btn-primary: #8a5cf3;
+    --today-row-bg: #2a2a14;
 
     --theme-ctrl-bg: #2a2a3e;
     --theme-ctrl-border: #484868;
@@ -144,9 +146,7 @@ h2 {
     font-size: 14px;
 }
 
-.form-row input[type="number"],
-.form-row input[type="date"],
-.form-row select {
+.form-row input[type="date"] {
     flex: 1;
     min-width: 0;
     padding: 7px 8px;
@@ -161,6 +161,32 @@ h2 {
 /* ダークモードでカレンダーアイコンを白系に */
 [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
     filter: invert(1);
+}
+
+/* ===== スライダー ===== */
+.slider-container {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.slider-container input[type="range"] {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+    accent-color: var(--focus-outline);
+    min-height: 36px; /* タッチターゲット確保 */
+}
+
+.slider-value {
+    flex: 0 0 auto;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    min-width: 28px;
+    text-align: right;
 }
 
 /* ===== テーブル共通 ===== */
@@ -202,6 +228,10 @@ td {
 #planTable tbody tr:nth-child(even) td { background-color: var(--row-alt); }
 #planTable tbody tr:hover td { background-color: var(--row-hover); }
 
+/* 今日の行 */
+#planTable tbody tr.today-row td  { background-color: var(--today-row-bg); }
+#planTable tbody tr.today-row:hover td { background-color: var(--row-hover); }
+
 /* キーボードフォーカス中のセルを強調 */
 #planTable td:focus-within {
     outline: 2px solid var(--focus-outline);
@@ -209,16 +239,26 @@ td {
     background-color: var(--select-focus-bg) !important;
 }
 
-#planTable td select {
-    width: 100%;
-    padding: 4px;
-    border: none;
-    background: transparent;
-    color: var(--text);
-    font-size: 14px;
+/* 予定(+)スライダー */
+.plan-slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 0;
+}
+
+.plan-slider-wrap input[type="range"] {
+    width: 72px;
     cursor: pointer;
-    outline: none;
-    min-height: 30px;
+    accent-color: var(--focus-outline);
+}
+
+.plan-slider-label {
+    font-size: 13px;
+    font-weight: 600;
+    min-width: 22px;
+    text-align: left;
+    color: var(--text);
 }
 
 #planTable td input[type="checkbox"] {
@@ -226,6 +266,16 @@ td {
     height: 18px;
     cursor: pointer;
     accent-color: var(--focus-outline);
+}
+
+/* スクロール対象行のフラッシュアニメーション */
+@keyframes rowFlash {
+    0%, 100% { box-shadow: none; }
+    40%       { box-shadow: inset 0 0 0 2px var(--focus-outline); }
+}
+
+#planTable tbody tr.scroll-target td {
+    animation: rowFlash 0.7s ease;
 }
 
 /* ===== 結果テーブル ===== */
@@ -237,6 +287,11 @@ td {
 #resultTable tbody tr:nth-child(even) td { background-color: var(--row-alt); }
 #resultTable tbody tr:hover td { background-color: var(--row-hover); }
 #resultTable tbody tr.selected-row td { background-color: var(--row-selected) !important; }
+
+/* 今日の行 */
+#resultTable tbody tr.today-row td { background-color: var(--today-row-bg); }
+#resultTable tbody tr.today-row:hover td { background-color: var(--row-hover); }
+#resultTable tbody tr.today-row.selected-row td { background-color: var(--row-selected) !important; }
 
 /* ランクセル着色 */
 td.rank-cell { font-weight: bold; }
@@ -369,9 +424,8 @@ td.rank-cell.rank-d { color: #546e7a; }
         margin-bottom: 2px;
     }
 
-    .form-row input[type="number"],
     .form-row input[type="date"],
-    .form-row select {
+    .form-row .slider-container {
         flex: 1 1 100%;
     }
 

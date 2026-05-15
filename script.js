@@ -13,19 +13,12 @@ function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', resolved);
 }
 
-// ===== ランクグラデーション定義 =====
-const RANK_GRADIENTS = {
-    'rank-s': 'linear-gradient(135deg, #ff2060, #ff6a00)',
-    'rank-a': 'linear-gradient(135deg, #ff1480, #ff4060)',
-    'rank-b': 'linear-gradient(135deg, #7b3ec8, #b06ae8)',
-    'rank-c': 'linear-gradient(135deg, #1a3ab8, #2b60e8)',
-    'rank-d': 'linear-gradient(135deg, #546e7a, #90a4ae)',
-};
+// ===== 定数 =====
+const RANK_VALUES  = ['D','C1','C2','C3','C4','C5','B1','B2','B3','A1','A2','A3','S1','S2','S3'];
+const POINT_VALUES = [0, 1, 2, 4, 6];
 
 // ===== 初期化 =====
 document.addEventListener('DOMContentLoaded', () => {
-    const ranks = ['D', 'C1', 'C2', 'C3', 'C4', 'C5', 'B1', 'B2', 'B3', 'A1', 'A2', 'A3', 'S1', 'S2', 'S3'];
-
     // テーマボタン
     const savedTheme = localStorage.getItem('iriam-theme') || 'auto';
     document.querySelectorAll('.theme-btn').forEach(btn => {
@@ -40,55 +33,71 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ランクセレクト
-    const currentRankSelect = document.getElementById('currentRank');
-    ranks.forEach(rank => {
-        const opt = document.createElement('option');
-        opt.value = opt.textContent = rank;
-        currentRankSelect.appendChild(opt);
-    });
-
-    // 開始日は常に今日（localStorage から復元しない）
+    // 開始日は常に今日
     document.getElementById('startDate').value = todayStr();
 
     // localStorage から状態を復元（なければデフォルト）
     const saved = loadState();
     if (saved) {
-        currentRankSelect.value = saved.rank || 'B2';
-        document.getElementById('currentScore').value  = saved.score ?? 0;
-        document.getElementById('daysLeft').value      = saved.daysLeft ?? 7;
-        document.getElementById('skipPasses').value    = saved.skipPasses ?? 0;
+        const rankIdx = Math.max(0, RANK_VALUES.indexOf(saved.rank || 'B2'));
+        document.getElementById('currentRankSlider').value  = rankIdx;
+        document.getElementById('currentScoreSlider').value = Math.min(18, Math.max(0, saved.score ?? 0));
+        document.getElementById('daysLeftSlider').value     = Math.min(7,  Math.max(1, saved.daysLeft ?? 7));
+        document.getElementById('skipPassesSlider').value   = Math.min(10, Math.max(0, saved.skipPasses ?? 0));
         buildPlanTable(todayStr(), saved.planByDate || {});
     } else {
-        currentRankSelect.value = 'B2';
+        document.getElementById('currentRankSlider').value  = RANK_VALUES.indexOf('B2');
+        document.getElementById('currentScoreSlider').value = 0;
+        document.getElementById('daysLeftSlider').value     = 7;
+        document.getElementById('skipPassesSlider').value   = 0;
         buildPlanTable(todayStr(), {});
     }
 
-    // 計算ボタンの色を初期ランクに合わせる
-    updateButtonGradient(currentRankSelect.value);
+    // 初期ラベルを更新
+    updateRankLabel();
+    updateScoreLabel();
+    updateDaysLeftLabel();
+    updateSkipPassesLabel();
 
-    // ランク変更でボタン色を更新
-    currentRankSelect.addEventListener('change', () => {
-        updateButtonGradient(currentRankSelect.value);
+    // ランクスライダー
+    document.getElementById('currentRankSlider').addEventListener('input', () => {
+        updateRankLabel();
         saveState();
     });
 
-    // 開始日変更（localStorage の全保存データ + 現在DOM行を合わせて引き継ぎ）
+    // スコアスライダー
+    document.getElementById('currentScoreSlider').addEventListener('input', () => {
+        updateScoreLabel();
+        saveState();
+    });
+
+    // 残り日数スライダー（変更時にスクロールアニメーション）
+    document.getElementById('daysLeftSlider').addEventListener('input', () => {
+        updateDaysLeftLabel();
+        scrollToPlanRow(getDaysLeft());
+        saveState();
+    });
+
+    // スキップパスラダー
+    document.getElementById('skipPassesSlider').addEventListener('input', () => {
+        updateSkipPassesLabel();
+        saveState();
+    });
+
+    // 開始日変更
     document.getElementById('startDate').addEventListener('change', () => {
         const st = loadState();
         buildPlanTable(document.getElementById('startDate').value, st?.planByDate || {});
         saveState();
     });
 
-    // 入力変更時の自動保存
-    ['currentScore', 'daysLeft', 'skipPasses'].forEach(id => {
-        document.getElementById(id).addEventListener('input', saveState);
-    });
-
     // 計算ボタン
-    document.getElementById('calculateButton').addEventListener('click', () => {
-        calculateResults(ranks);
-    });
+    document.getElementById('calculateButton').addEventListener('click', calculateResults);
+
+    // 数字キーによるスライダー直接入力
+    addNumericKeyInput('currentScoreSlider', 0, 18);
+    addNumericKeyInput('daysLeftSlider',     1, 7);
+    addNumericKeyInput('skipPassesSlider',   0, 10);
 
     // デイリー残り時間を1分ごとに更新
     setInterval(refreshDailyTimeLeft, 60000);
@@ -98,6 +107,31 @@ document.addEventListener('DOMContentLoaded', () => {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
     }
 });
+
+// ===== フォーム値ゲッター =====
+function getRank()       { return RANK_VALUES[parseInt(document.getElementById('currentRankSlider').value, 10)]; }
+function getScore()      { return parseInt(document.getElementById('currentScoreSlider').value, 10) || 0; }
+function getDaysLeft()   { return parseInt(document.getElementById('daysLeftSlider').value, 10) || 7; }
+function getSkipPasses() { return parseInt(document.getElementById('skipPassesSlider').value, 10) || 0; }
+
+// ===== スライダーラベル更新 =====
+function updateRankLabel() {
+    const rank = getRank();
+    document.getElementById('currentRankValue').textContent = rank;
+    updateButtonGradient(rank);
+}
+
+function updateScoreLabel() {
+    document.getElementById('currentScoreValue').textContent = getScore();
+}
+
+function updateDaysLeftLabel() {
+    document.getElementById('daysLeftValue').textContent = getDaysLeft();
+}
+
+function updateSkipPassesLabel() {
+    document.getElementById('skipPassesValue').textContent = getSkipPasses();
+}
 
 // ===== 日付ユーティリティ（すべてローカル時刻で統一） =====
 function toLocalDateStr(date) {
@@ -131,7 +165,7 @@ function getTimeUntilMidnight() {
     const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
     const diff = midnight - now;
     return {
-        hours: Math.floor(diff / 3600000),
+        hours:   Math.floor(diff / 3600000),
         minutes: Math.floor((diff % 3600000) / 60000),
     };
 }
@@ -145,20 +179,19 @@ function getRankClass(rank) {
     return 'rank-d';
 }
 
-function getNextRank(rank, ranks) {
-    const idx = ranks.indexOf(rank);
-    return idx === -1 ? rank : ranks[Math.min(idx + 1, ranks.length - 1)];
+function getNextRank(rank) {
+    const idx = RANK_VALUES.indexOf(rank);
+    return idx === -1 ? rank : RANK_VALUES[Math.min(idx + 1, RANK_VALUES.length - 1)];
 }
 
-function getPrevRank(rank, ranks) {
-    const idx = ranks.indexOf(rank);
-    return idx === -1 ? rank : ranks[Math.max(idx - 1, 0)];
+function getPrevRank(rank) {
+    const idx = RANK_VALUES.indexOf(rank);
+    return idx === -1 ? rank : RANK_VALUES[Math.max(idx - 1, 0)];
 }
 
 // ===== 計算ボタンのグラデーション更新 =====
 function updateButtonGradient(rank) {
-    const btn = document.getElementById('calculateButton');
-    btn.className = getRankClass(rank);
+    document.getElementById('calculateButton').className = getRankClass(rank);
 }
 
 // ===== localStorage =====
@@ -167,18 +200,18 @@ function saveState() {
     const planRows = document.getElementById('planTable').querySelector('tbody').rows;
     const planByDate = {};
     Array.from(planRows).forEach((row, i) => {
-        // data-date がなければ開始日＋インデックスから計算（SW旧キャッシュ対策）
         const dateStr = row.cells[0].dataset.date || getDateStr(startDateStr, i);
+        const slider = row.cells[1].querySelector('input[type="range"]');
         planByDate[dateStr] = {
-            point: row.cells[1].querySelector('select').value,
+            point: slider ? POINT_VALUES[parseInt(slider.value, 10)] : 0,
             skip:  row.cells[2].querySelector('input[type="checkbox"]').checked,
         };
     });
     const state = {
-        rank:       document.getElementById('currentRank').value,
-        score:      document.getElementById('currentScore').value,
-        daysLeft:   document.getElementById('daysLeft').value,
-        skipPasses: document.getElementById('skipPasses').value,
+        rank:       getRank(),
+        score:      getScore(),
+        daysLeft:   getDaysLeft(),
+        skipPasses: getSkipPasses(),
         planByDate,
     };
     localStorage.setItem('iriam-state', JSON.stringify(state));
@@ -199,47 +232,63 @@ function buildPlanTable(startDateStr, planByDate) {
     const merged = Object.assign({}, planByDate);
     Array.from(tbody.rows).forEach(row => {
         const dateStr = row.cells[0].dataset.date;
-        if (dateStr) {
+        const slider  = row.cells[1].querySelector('input[type="range"]');
+        if (dateStr && slider) {
             merged[dateStr] = {
-                point: row.cells[1].querySelector('select').value,
+                point: POINT_VALUES[parseInt(slider.value, 10)],
                 skip:  row.cells[2].querySelector('input[type="checkbox"]').checked,
             };
         }
     });
 
     tbody.innerHTML = '';
-    const possiblePoints = [0, 1, 2, 4, 6];
 
     for (let i = 0; i < 7; i++) {
         const dateStr = getDateStr(startDateStr, i);
-        const saved = merged[dateStr];
+        const savedEntry = merged[dateStr];
+        const isToday = dateStr === todayStr();
         const tr = document.createElement('tr');
+        if (isToday) tr.classList.add('today-row');
 
-        // 日付セル（data-date に実日付を保持）
+        // 日付セル
         const dayTd = document.createElement('td');
         dayTd.textContent = formatDateWithOffset(startDateStr, i);
         dayTd.dataset.date = dateStr;
         tr.appendChild(dayTd);
 
-        // ポイントセル
+        // ポイントスライダーセル
         const pointTd = document.createElement('td');
-        const sel = document.createElement('select');
-        possiblePoints.forEach(pt => {
-            const opt = document.createElement('option');
-            opt.value = pt;
-            opt.textContent = `+${pt}`;
-            sel.appendChild(opt);
+        const wrap = document.createElement('div');
+        wrap.className = 'plan-slider-wrap';
+
+        const pointSlider = document.createElement('input');
+        pointSlider.type  = 'range';
+        pointSlider.min   = 0;
+        pointSlider.max   = POINT_VALUES.length - 1;
+        pointSlider.step  = 1;
+
+        const savedIdx = savedEntry ? Math.max(0, POINT_VALUES.indexOf(Number(savedEntry.point))) : 0;
+        pointSlider.value = savedIdx >= 0 ? savedIdx : 0;
+
+        const pointLabel = document.createElement('span');
+        pointLabel.className = 'plan-slider-label';
+        pointLabel.textContent = `+${POINT_VALUES[pointSlider.value]}`;
+
+        pointSlider.addEventListener('input', () => {
+            pointLabel.textContent = `+${POINT_VALUES[parseInt(pointSlider.value, 10)]}`;
+            saveState();
         });
-        if (saved) sel.value = saved.point;
-        sel.addEventListener('change', saveState);
-        pointTd.appendChild(sel);
+
+        wrap.appendChild(pointSlider);
+        wrap.appendChild(pointLabel);
+        pointTd.appendChild(wrap);
         tr.appendChild(pointTd);
 
         // スキップセル
         const skipTd = document.createElement('td');
         const cb = document.createElement('input');
         cb.type = 'checkbox';
-        if (saved) cb.checked = saved.skip;
+        if (savedEntry) cb.checked = savedEntry.skip;
         cb.addEventListener('change', saveState);
         skipTd.appendChild(cb);
         tr.appendChild(skipTd);
@@ -262,24 +311,30 @@ function handleArrowKey(e) {
     const cell = focused.closest('td');
     if (!cell) return;
 
-    const isSelect = focused.tagName === 'SELECT';
+    const isRange    = focused.type === 'range';
     const isCheckbox = focused.type === 'checkbox';
 
-    // 数字キー（0,1,2,4,6）でポイント直接入力
-    if (isSelect && ['0', '1', '2', '4', '6'].includes(e.key)) {
-        focused.value = e.key;
-        focused.dispatchEvent(new Event('change'));
+    // 数字キー (0,1,2,4,6) でポイント直接入力
+    if (isRange && ['0', '1', '2', '4', '6'].includes(e.key)) {
+        const idx = POINT_VALUES.indexOf(parseInt(e.key, 10));
+        if (idx >= 0) {
+            focused.value = idx;
+            focused.dispatchEvent(new Event('input'));
+        }
         return;
     }
+
+    // range の左右キーはネイティブ動作（値変更）に任せる
+    if (isRange && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
 
     const isArrow = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
     const isEnter = e.key === 'Enter';
     if (!isArrow && !isEnter) return;
-    if (isEnter && isCheckbox) return; // チェックボックスのSpaceはネイティブ
+    if (isEnter && isCheckbox) return;
 
     e.preventDefault();
 
-    const row = cell.parentElement;
+    const row  = cell.parentElement;
     const rows = Array.from(row.parentElement.rows);
     const cols = Array.from(row.cells);
     const rowIdx = rows.indexOf(row);
@@ -288,25 +343,62 @@ function handleArrowKey(e) {
     let targetRow = rowIdx;
     let targetCol = colIdx;
 
-    if (e.key === 'ArrowUp'    || (isEnter && e.shiftKey)) targetRow = Math.max(0, rowIdx - 1);
-    if (e.key === 'ArrowDown'  || (isEnter && !e.shiftKey)) targetRow = Math.min(rows.length - 1, rowIdx + 1);
-    if (e.key === 'ArrowLeft')  targetCol = Math.max(1, colIdx - 1); // col 0 は日付（スキップ）
+    if (e.key === 'ArrowUp'   || (isEnter && e.shiftKey))  targetRow = Math.max(0, rowIdx - 1);
+    if (e.key === 'ArrowDown' || (isEnter && !e.shiftKey)) targetRow = Math.min(rows.length - 1, rowIdx + 1);
+    if (e.key === 'ArrowLeft')  targetCol = Math.max(1, colIdx - 1);
     if (e.key === 'ArrowRight') targetCol = Math.min(cols.length - 1, colIdx + 1);
 
     const targetCell = rows[targetRow].cells[targetCol];
-    const interactive = targetCell.querySelector('select, input');
+    const interactive = targetCell.querySelector('input[type="range"], input[type="checkbox"]');
     if (interactive) interactive.focus();
 }
 
-// ===== シミュレーション計算 =====
-function calculateResults(ranks) {
-    const startDateStr = document.getElementById('startDate').value;
-    let currentRank  = document.getElementById('currentRank').value;
-    let currentScore = parseInt(document.getElementById('currentScore').value, 10) || 0;
-    let daysLeft     = parseInt(document.getElementById('daysLeft').value, 10) || 7;
-    let skipPasses   = parseInt(document.getElementById('skipPasses').value, 10) || 0;
+// ===== スクロールアニメーション =====
+function scrollToPlanRow(daysLeft) {
+    const tbody = document.getElementById('planTable').querySelector('tbody');
+    if (!tbody.rows.length) return;
+    const targetIdx = Math.min(daysLeft - 1, tbody.rows.length - 1);
+    const row = tbody.rows[targetIdx];
+    Array.from(tbody.rows).forEach(r => r.classList.remove('scroll-target'));
+    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    row.classList.add('scroll-target');
+    row.addEventListener('animationend', () => row.classList.remove('scroll-target'), { once: true });
+}
 
-    daysLeft = Math.max(1, Math.min(7, daysLeft));
+// ===== 数字キーによるスライダー直接入力 =====
+function addNumericKeyInput(sliderId, min, max) {
+    const slider = document.getElementById(sliderId);
+    let buffer = '';
+    let timer  = null;
+    slider.addEventListener('keydown', e => {
+        if (!/^\d$/.test(e.key)) return;
+        e.preventDefault();
+        buffer += e.key;
+        clearTimeout(timer);
+        timer = setTimeout(() => { buffer = ''; }, 800);
+        const val = parseInt(buffer, 10);
+        if (val > max) {
+            // 入力が範囲外なら最後の1桁で再評価
+            buffer = e.key;
+            const single = parseInt(buffer, 10);
+            if (single >= min && single <= max) {
+                slider.value = single;
+                slider.dispatchEvent(new Event('input'));
+            }
+        } else if (val >= min) {
+            slider.value = val;
+            slider.dispatchEvent(new Event('input'));
+        }
+    });
+}
+
+// ===== シミュレーション計算 =====
+function calculateResults() {
+    const startDateStr = document.getElementById('startDate').value;
+    let currentRank  = getRank();
+    let currentScore = getScore();
+    let daysLeft     = Math.max(1, Math.min(7, getDaysLeft()));
+    let skipPasses   = getSkipPasses();
 
     const resultTbody = document.getElementById('resultTable').querySelector('tbody');
     resultTbody.innerHTML = '';
@@ -315,43 +407,56 @@ function calculateResults(ranks) {
     const dayStates = [];
 
     for (let i = 0; i < planRows.length; i++) {
-        const dailyPoints = parseInt(planRows[i].cells[1].querySelector('select').value, 10) || 0;
+        const slider      = planRows[i].cells[1].querySelector('input[type="range"]');
+        const dailyPoints = slider ? POINT_VALUES[parseInt(slider.value, 10)] : 0;
         const skipUsed    = planRows[i].cells[2].querySelector('input[type="checkbox"]').checked;
+        const date        = getDateStr(startDateStr, i);
 
+        // この日の開始時点の状態を記録（行に表示する値）
+        dayStates.push({ rank: currentRank, score: currentScore, daysLeft, dailyPoints, skipPasses, date });
+
+        // この日を処理
         if (skipUsed && skipPasses > 0) {
             skipPasses -= 1;
-            daysLeft += 1;
+            daysLeft   += 1;
         } else {
             currentScore += dailyPoints;
-            daysLeft -= 1;
-            if (daysLeft <= 0) {
-                if (currentScore >= 18)      currentRank = getNextRank(currentRank, ranks);
-                else if (currentScore < 12)  currentRank = getPrevRank(currentRank, ranks);
+            if (currentScore >= 18) {
+                // スコア18以上で翌日即ランクアップ
+                currentRank  = getNextRank(currentRank);
                 currentScore = 0;
-                daysLeft = 7;
+                daysLeft     = 7;
+            } else {
+                daysLeft -= 1;
+                if (daysLeft <= 0) {
+                    if (currentScore < 12) currentRank = getPrevRank(currentRank);
+                    currentScore = 0;
+                    daysLeft     = 7;
+                }
             }
         }
+    }
 
-        dayStates.push({ rank: currentRank, score: currentScore, daysLeft, dailyPoints, skipPasses, date: getDateStr(startDateStr, i) });
-
+    // テーブル行を構築
+    dayStates.forEach((s, i) => {
         const tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
+        if (s.date === todayStr()) tr.classList.add('today-row');
 
         const cells = [
             formatDateWithOffset(startDateStr, i),
-            `${currentScore}`,
-            currentRank,
-            `${skipPasses}`,
+            `${s.score}`,
+            s.rank,
+            `${s.skipPasses}`,
         ];
         cells.forEach((text, ci) => {
             const td = document.createElement('td');
             td.textContent = text;
-            if (ci === 2) td.className = `rank-cell ${getRankClass(currentRank)}`;
+            if (ci === 2) td.className = `rank-cell ${getRankClass(s.rank)}`;
             tr.appendChild(td);
         });
-
         resultTbody.appendChild(tr);
-    }
+    });
 
     // 行クリックでカード更新
     Array.from(resultTbody.rows).forEach((tr, i) => {
@@ -363,38 +468,54 @@ function calculateResults(ranks) {
         });
     });
 
-    // 最終日のカードを表示
+    // デフォルトは最終行の状態を表示
     const last = dayStates[dayStates.length - 1];
     updateRankCard(last.rank, last.score, last.daysLeft, last.dailyPoints, last.date);
 }
 
 // ===== ランクカード更新 =====
 function updateRankCard(rank, currentScore, daysLeft, dailyPoints, dayDateStr) {
-    document.getElementById('rankCard').className = `rank-card ${getRankClass(rank)}`;
-    document.getElementById('rankLabel').textContent    = rank;
+    document.getElementById('rankCard').className    = `rank-card ${getRankClass(rank)}`;
+    document.getElementById('rankLabel').textContent = rank;
     document.getElementById('scoreDisplay').textContent = `${currentScore} / 18`;
-    document.getElementById('daysInfo').textContent     = `残り${daysLeft}日でランクダウン`;
-    document.getElementById('keepNeeded').textContent   = `あと+${Math.max(0, 12 - currentScore)}`;
-    document.getElementById('upNeeded').textContent     = `あと+${Math.max(0, 18 - currentScore)}`;
-    document.getElementById('dailyScore').textContent   = `+${dailyPoints}`;
 
-    // 本日の行ならば残り時間を表示
+    const suffix     = currentScore >= 12 ? 'リセット' : 'ランクダウン';
+    const daysInfoEl = document.getElementById('daysInfo');
+    if (daysLeft === 1 && dayDateStr === todayStr()) {
+        const { hours, minutes } = getTimeUntilMidnight();
+        daysInfoEl.textContent       = `あと${hours}時間${minutes}分で${suffix}`;
+        daysInfoEl.dataset.timeMode  = 'true';
+        daysInfoEl.dataset.suffix    = suffix;
+    } else {
+        daysInfoEl.textContent      = `残り${daysLeft}日で${suffix}`;
+        daysInfoEl.dataset.timeMode = 'false';
+    }
+
+    document.getElementById('keepNeeded').textContent = `あと+${Math.max(0, 12 - currentScore)}`;
+    document.getElementById('upNeeded').textContent   = `あと+${Math.max(0, 18 - currentScore)}`;
+    document.getElementById('dailyScore').textContent = `+${dailyPoints}`;
+
     const timeEl = document.getElementById('dailyTimeLeft');
     if (dayDateStr && dayDateStr === todayStr()) {
-        timeEl.dataset.isToday = 'true';
         const { hours, minutes } = getTimeUntilMidnight();
-        timeEl.textContent = `あと ${hours}時間${minutes}分`;
-        timeEl.style.display = '';
+        timeEl.dataset.isToday = 'true';
+        timeEl.textContent     = `あと ${hours}時間${minutes}分`;
+        timeEl.style.display   = '';
     } else {
         timeEl.dataset.isToday = 'false';
-        timeEl.style.display = 'none';
+        timeEl.style.display   = 'none';
     }
 }
 
 function refreshDailyTimeLeft() {
-    const el = document.getElementById('dailyTimeLeft');
-    if (el && el.dataset.isToday === 'true') {
+    const timeEl = document.getElementById('dailyTimeLeft');
+    if (timeEl?.dataset.isToday === 'true') {
         const { hours, minutes } = getTimeUntilMidnight();
-        el.textContent = `あと ${hours}時間${minutes}分`;
+        timeEl.textContent = `あと ${hours}時間${minutes}分`;
+    }
+    const daysInfoEl = document.getElementById('daysInfo');
+    if (daysInfoEl?.dataset.timeMode === 'true') {
+        const { hours, minutes } = getTimeUntilMidnight();
+        daysInfoEl.textContent = `あと${hours}時間${minutes}分で${daysInfoEl.dataset.suffix}`;
     }
 }
