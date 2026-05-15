@@ -1,0 +1,18 @@
+# git config core.autocrlf false
+# git config core.safecrlf warn
+# git config core.checkRoundtripEncoding true
+
+## LF / UTF-8
+*            text=auto eol=lf
+
+## CRLF / UTF-8
+#*.ini        text      eol=crlf
+
+## CRLF / UTF-8 with BOM
+#*.sln        text      eol=crlf filter=utf8bom
+
+## CRLF / Shift_JIS
+#*.bat        text      eol=crlf working-tree-encoding=CP932
+
+## Binary (LFS)
+#*.zip filter=lfs diff=lfs merge=lfs -text
