@@ -218,8 +218,9 @@ h2 {
     -webkit-overflow-scrolling: touch;
 }
 
-/* 予定テーブルは縦スクロール固定高さ */
-.plan-section .table-scroll {
+/* 予定・計算結果テーブルは縦スクロール固定高さ */
+.plan-section .table-scroll,
+.result-section .table-scroll {
     max-height: 260px;
     overflow-y: auto;
 }

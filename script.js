@@ -444,26 +444,29 @@ function calculateResults() {
         alert('開始日が表の範囲外です。表示範囲内（過去7日〜未来30日）で設定してください。');
         return;
     }
-    const planRows = allRows.slice(startRowIdx, startRowIdx + 7);
+
     const dayStates = [];
 
-    for (let i = 0; i < planRows.length; i++) {
-        const slider      = planRows[i].cells[1].querySelector('input[type="range"]');
+    // 開始日より前は空表示
+    for (let i = 0; i < startRowIdx; i++) {
+        dayStates.push({ date: allRows[i].dataset.date, pre: true });
+    }
+
+    // 開始日以降をシミュレーション
+    for (let i = startRowIdx; i < allRows.length; i++) {
+        const slider      = allRows[i].cells[1].querySelector('input[type="range"]');
         const dailyPoints = slider ? POINT_VALUES[parseInt(slider.value, 10)] : 0;
-        const skipUsed    = planRows[i].cells[2].querySelector('input[type="checkbox"]').checked;
-        const date        = planRows[i].dataset.date;
+        const skipUsed    = allRows[i].cells[2].querySelector('input[type="checkbox"]').checked;
+        const date        = allRows[i].dataset.date;
 
-        // この日の開始時点の状態を記録（行に表示する値）
-        dayStates.push({ rank: currentRank, score: currentScore, daysLeft, dailyPoints, skipPasses, date });
+        dayStates.push({ rank: currentRank, score: currentScore, daysLeft, dailyPoints, skipPasses, date, pre: false });
 
-        // この日を処理
         if (skipUsed && skipPasses > 0) {
             skipPasses -= 1;
             daysLeft   += 1;
         } else {
             currentScore += dailyPoints;
             if (currentScore >= 18) {
-                // スコア18以上で翌日即ランクアップ
                 currentRank  = getNextRank(currentRank);
                 currentScore = 0;
                 daysLeft     = 7;
@@ -479,39 +482,61 @@ function calculateResults() {
     }
 
     // テーブル行を構築
-    dayStates.forEach((s, i) => {
+    dayStates.forEach(s => {
         const tr = document.createElement('tr');
-        tr.style.cursor = 'pointer';
+        tr.dataset.date = s.date;
         if (s.date === todayStr()) tr.classList.add('today-row');
 
-        const cells = [
-            formatDateWithOffset(startDateStr, i),
-            s.rank,
-            `${s.score}`,
-            `${s.skipPasses}`,
-        ];
-        cells.forEach((text, ci) => {
-            const td = document.createElement('td');
-            td.textContent = text;
-            if (ci === 1) td.className = `rank-cell ${getRankClass(s.rank)}`;
-            tr.appendChild(td);
-        });
+        if (s.pre) {
+            [formatDateStr(s.date), '--', '--', '--'].forEach(text => {
+                const td = document.createElement('td');
+                td.textContent = text;
+                tr.appendChild(td);
+            });
+        } else {
+            tr.style.cursor = 'pointer';
+            [formatDateStr(s.date), s.rank, `${s.score}`, `${s.skipPasses}`].forEach((text, ci) => {
+                const td = document.createElement('td');
+                td.textContent = text;
+                if (ci === 1) td.className = `rank-cell ${getRankClass(s.rank)}`;
+                tr.appendChild(td);
+            });
+        }
         resultTbody.appendChild(tr);
     });
 
-    // 行クリックでカード更新
+    // 行クリックでカード更新（シミュレーション行のみ）
     Array.from(resultTbody.rows).forEach((tr, i) => {
+        const s = dayStates[i];
+        if (s.pre) return;
         tr.addEventListener('click', () => {
             Array.from(resultTbody.rows).forEach(r => r.classList.remove('selected-row'));
             tr.classList.add('selected-row');
-            const s = dayStates[i];
             updateRankCard(s.rank, s.score, s.daysLeft, s.dailyPoints, s.date);
         });
     });
 
-    // デフォルトは最終行の状態を表示
-    const last = dayStates[dayStates.length - 1];
-    updateRankCard(last.rank, last.score, last.daysLeft, last.dailyPoints, last.date);
+    // デフォルトは最終シミュレーション行の状態を表示
+    const simStates = dayStates.filter(s => !s.pre);
+    if (simStates.length > 0) {
+        const last = simStates[simStates.length - 1];
+        updateRankCard(last.rank, last.score, last.daysLeft, last.dailyPoints, last.date);
+    }
+
+    // 計算後に開始日の行へスクロール
+    setTimeout(() => scrollResultToDate(startDateStr), 0);
+}
+
+// ===== 計算結果表の日付指定スクロール =====
+function scrollResultToDate(dateStr) {
+    const container = document.querySelector('.result-section .table-scroll');
+    const tbody = document.getElementById('resultTable').querySelector('tbody');
+    const row = Array.from(tbody.rows).find(r => r.dataset.date === dateStr);
+    if (!row || !container) return;
+    const containerRect = container.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const theadHeight = document.querySelector('#resultTable thead').offsetHeight;
+    container.scrollBy({ top: rowRect.top - containerRect.top - theadHeight, behavior: 'smooth' });
 }
 
 // ===== ランクカード更新 =====
