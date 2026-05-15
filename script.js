@@ -382,13 +382,19 @@ function handleArrowKey(e) {
     if (interactive) interactive.focus();
 }
 
-// ===== 日付指定スクロールアニメーション =====
+// ===== 日付指定スクロールアニメーション（表内のみ、ページはスクロールしない） =====
 function scrollToDate(dateStr) {
+    const container = document.querySelector('.plan-section .table-scroll');
     const tbody = document.getElementById('planTable').querySelector('tbody');
     const row = Array.from(tbody.rows).find(r => r.dataset.date === dateStr);
-    if (!row) return;
+    if (!row || !container) return;
+
+    // コンテナ内の相対位置だけスクロール（ページ全体には影響しない）
+    const containerRect = container.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    container.scrollBy({ top: rowRect.top - containerRect.top, behavior: 'smooth' });
+
     Array.from(tbody.rows).forEach(r => r.classList.remove('scroll-target'));
-    row.scrollIntoView({ behavior: 'smooth', block: 'start' });
     row.classList.add('scroll-target');
     row.addEventListener('animationend', () => row.classList.remove('scroll-target'), { once: true });
 }
