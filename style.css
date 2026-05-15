@@ -158,6 +158,11 @@ h2 {
     transition: background-color 0.2s, border-color 0.2s, color 0.2s;
 }
 
+/* ダークモードでカレンダーアイコンを白系に */
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+
 /* ===== テーブル共通 ===== */
 .table-scroll {
     overflow-x: auto;

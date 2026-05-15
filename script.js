@@ -48,6 +48,9 @@ document.addEventListener('DOMContentLoaded', () => {
         currentRankSelect.appendChild(opt);
     });
 
+    // 開始日は常に今日（localStorage から復元しない）
+    document.getElementById('startDate').value = todayStr();
+
     // localStorage から状態を復元（なければデフォルト）
     const saved = loadState();
     if (saved) {
@@ -55,12 +58,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('currentScore').value  = saved.score ?? 0;
         document.getElementById('daysLeft').value      = saved.daysLeft ?? 7;
         document.getElementById('skipPasses').value    = saved.skipPasses ?? 0;
-        document.getElementById('startDate').value     = saved.startDate || todayStr();
-        buildPlanTable(document.getElementById('startDate').value, saved.plan || []);
+        buildPlanTable(todayStr(), saved.planByDate || {});
     } else {
         currentRankSelect.value = 'B2';
-        document.getElementById('startDate').value = todayStr();
-        buildPlanTable(todayStr(), []);
+        buildPlanTable(todayStr(), {});
     }
 
     // 計算ボタンの色を初期ランクに合わせる
@@ -72,9 +73,9 @@ document.addEventListener('DOMContentLoaded', () => {
         saveState();
     });
 
-    // 開始日変更
+    // 開始日変更（既存行の値を日付キーで引き継ぎ）
     document.getElementById('startDate').addEventListener('change', () => {
-        buildPlanTable(document.getElementById('startDate').value, []);
+        buildPlanTable(document.getElementById('startDate').value, {});
         saveState();
     });
 
@@ -162,16 +163,22 @@ function updateButtonGradient(rank) {
 // ===== localStorage =====
 function saveState() {
     const planRows = document.getElementById('planTable').querySelector('tbody').rows;
+    const planByDate = {};
+    Array.from(planRows).forEach(row => {
+        const dateStr = row.cells[0].dataset.date;
+        if (dateStr) {
+            planByDate[dateStr] = {
+                point: row.cells[1].querySelector('select').value,
+                skip:  row.cells[2].querySelector('input[type="checkbox"]').checked,
+            };
+        }
+    });
     const state = {
         rank:       document.getElementById('currentRank').value,
         score:      document.getElementById('currentScore').value,
-        startDate:  document.getElementById('startDate').value,
         daysLeft:   document.getElementById('daysLeft').value,
         skipPasses: document.getElementById('skipPasses').value,
-        plan: Array.from(planRows).map(row => ({
-            point: row.cells[1].querySelector('select').value,
-            skip:  row.cells[2].querySelector('input[type="checkbox"]').checked,
-        })),
+        planByDate,
     };
     localStorage.setItem('iriam-state', JSON.stringify(state));
 }
@@ -184,27 +191,33 @@ function loadState() {
 }
 
 // ===== 予定テーブル構築 =====
-function buildPlanTable(startDateStr, initValues) {
+function buildPlanTable(startDateStr, planByDate) {
     const tbody = document.getElementById('planTable').querySelector('tbody');
-    const existingRows = Array.from(tbody.rows);
 
-    // 既存行があればその値を引き継ぎ、なければ initValues を使う
-    const prevValues = existingRows.length > 0
-        ? existingRows.map(row => ({
-            point: row.cells[1].querySelector('select').value,
-            skip:  row.cells[2].querySelector('input[type="checkbox"]').checked,
-          }))
-        : (initValues || []);
+    // 既存行の値を日付キーで収集（開始日変更時に日付をまたいで引き継ぎ）
+    const merged = Object.assign({}, planByDate);
+    Array.from(tbody.rows).forEach(row => {
+        const dateStr = row.cells[0].dataset.date;
+        if (dateStr) {
+            merged[dateStr] = {
+                point: row.cells[1].querySelector('select').value,
+                skip:  row.cells[2].querySelector('input[type="checkbox"]').checked,
+            };
+        }
+    });
 
     tbody.innerHTML = '';
     const possiblePoints = [0, 1, 2, 4, 6];
 
     for (let i = 0; i < 7; i++) {
+        const dateStr = getDateStr(startDateStr, i);
+        const saved = merged[dateStr];
         const tr = document.createElement('tr');
 
-        // 日付セル
+        // 日付セル（data-date に実日付を保持）
         const dayTd = document.createElement('td');
         dayTd.textContent = formatDateWithOffset(startDateStr, i);
+        dayTd.dataset.date = dateStr;
         tr.appendChild(dayTd);
 
         // ポイントセル
@@ -216,7 +229,7 @@ function buildPlanTable(startDateStr, initValues) {
             opt.textContent = `+${pt}`;
             sel.appendChild(opt);
         });
-        if (prevValues[i]) sel.value = prevValues[i].point;
+        if (saved) sel.value = saved.point;
         sel.addEventListener('change', saveState);
         pointTd.appendChild(sel);
         tr.appendChild(pointTd);
@@ -225,7 +238,7 @@ function buildPlanTable(startDateStr, initValues) {
         const skipTd = document.createElement('td');
         const cb = document.createElement('input');
         cb.type = 'checkbox';
-        if (prevValues[i]) cb.checked = prevValues[i].skip;
+        if (saved) cb.checked = saved.skip;
         cb.addEventListener('change', saveState);
         skipTd.appendChild(cb);
         tr.appendChild(skipTd);
@@ -239,7 +252,6 @@ function buildPlanTable(startDateStr, initValues) {
 // ===== 矢印キーナビゲーション =====
 function setupArrowKeyNav() {
     const tbody = document.getElementById('planTable').querySelector('tbody');
-    // 既存のリスナーを削除して再設定
     tbody.removeEventListener('keydown', handleArrowKey);
     tbody.addEventListener('keydown', handleArrowKey);
 }
@@ -251,6 +263,13 @@ function handleArrowKey(e) {
 
     const isSelect = focused.tagName === 'SELECT';
     const isCheckbox = focused.type === 'checkbox';
+
+    // 数字キー（0,1,2,4,6）でポイント直接入力
+    if (isSelect && ['0', '1', '2', '4', '6'].includes(e.key)) {
+        focused.value = e.key;
+        focused.dispatchEvent(new Event('change'));
+        return;
+    }
 
     // selectの上下キーはネイティブ動作に任せる
     if (isSelect && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return;
