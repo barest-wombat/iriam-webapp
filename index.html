@@ -30,20 +30,32 @@
                 <input type="date" id="startDate">
             </div>
             <div class="form-row">
-                <label for="currentRank">現在ランク:</label>
-                <select id="currentRank"></select>
+                <label>現在ランク:</label>
+                <div class="slider-container">
+                    <input type="range" id="currentRankSlider" min="0" max="14" step="1" value="7">
+                    <span class="slider-value" id="currentRankValue">B2</span>
+                </div>
             </div>
             <div class="form-row">
-                <label for="currentScore">現在ランクスコア:</label>
-                <input type="number" id="currentScore" min="0" max="18" value="0">
+                <label>現在ランクスコア:</label>
+                <div class="slider-container">
+                    <input type="range" id="currentScoreSlider" min="0" max="18" step="1" value="0">
+                    <span class="slider-value" id="currentScoreValue">0</span>
+                </div>
             </div>
             <div class="form-row">
-                <label for="daysLeft">残り日数:</label>
-                <input type="number" id="daysLeft" min="1" max="7" value="7">
+                <label>残り日数:</label>
+                <div class="slider-container">
+                    <input type="range" id="daysLeftSlider" min="1" max="7" step="1" value="7">
+                    <span class="slider-value" id="daysLeftValue">7</span>
+                </div>
             </div>
             <div class="form-row">
-                <label for="skipPasses">スキップパス枚数:</label>
-                <input type="number" id="skipPasses" min="0" max="10" value="0">
+                <label>スキップパス枚数:</label>
+                <div class="slider-container">
+                    <input type="range" id="skipPassesSlider" min="0" max="10" step="1" value="0">
+                    <span class="slider-value" id="skipPassesValue">0</span>
+                </div>
             </div>
         </section>
 
@@ -72,8 +84,8 @@
                     <thead>
                         <tr>
                             <th>日</th>
-                            <th>翌日ランクスコア</th>
-                            <th>翌日ランク</th>
+                            <th>ランクスコア</th>
+                            <th>ランク</th>
                             <th>残りスキップ</th>
                         </tr>
                     </thead>
