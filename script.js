@@ -294,6 +294,7 @@ function buildCalendarTable(planByDate) {
 
         const savedIdx = savedEntry ? Math.max(0, POINT_VALUES.indexOf(Number(savedEntry.point))) : 1;
         pointSlider.value = savedIdx >= 0 ? savedIdx : 1;
+        updateSliderFill(pointSlider);
 
         const pointLabel = document.createElement('span');
         pointLabel.className = 'plan-slider-label';
@@ -301,6 +302,7 @@ function buildCalendarTable(planByDate) {
 
         pointSlider.addEventListener('input', () => {
             pointLabel.textContent = `+${POINT_VALUES[parseInt(pointSlider.value, 10)]}`;
+            updateSliderFill(pointSlider);
             saveState();
         });
 
