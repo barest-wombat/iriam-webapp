@@ -195,18 +195,30 @@ h2 {
     gap: 8px;
 }
 
-.slider-container input[type="range"] {
-    flex: 1;
-    min-width: 0;
-    cursor: pointer;
+/* ===== スライダー共通（現在の状態・予定入力を統一） ===== */
+.slider-container input[type="range"],
+.plan-slider-wrap input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
     outline: none;
+    cursor: pointer;
+}
+
+.slider-container input[type="range"] {
+    flex: 1;
+    min-width: 0;
     height: 28px;
 }
 
-.slider-container input[type="range"]::-webkit-slider-runnable-track {
+.plan-slider-wrap input[type="range"] {
+    flex: 1;
+    min-width: 0;
+}
+
+/* トラック（現在の状態スタイルを両者に適用） */
+.slider-container input[type="range"]::-webkit-slider-runnable-track,
+.plan-slider-wrap input[type="range"]::-webkit-slider-runnable-track {
     height: 4px;
     border-radius: 2px;
     background: linear-gradient(
@@ -216,35 +228,40 @@ h2 {
     );
 }
 
-.slider-container input[type="range"]::-webkit-slider-thumb {
+/* つまみ（予定入力相当の小さいサイズを両者に適用） */
+.slider-container input[type="range"]::-webkit-slider-thumb,
+.plan-slider-wrap input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     background: #fff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
     cursor: pointer;
-    margin-top: -9px;
+    margin-top: -7px;
 }
 
-.slider-container input[type="range"]::-moz-range-track {
+.slider-container input[type="range"]::-moz-range-track,
+.plan-slider-wrap input[type="range"]::-moz-range-track {
     height: 4px;
     border-radius: 2px;
     background: var(--border);
 }
 
-.slider-container input[type="range"]::-moz-range-progress {
+.slider-container input[type="range"]::-moz-range-progress,
+.plan-slider-wrap input[type="range"]::-moz-range-progress {
     height: 4px;
     border-radius: 2px 0 0 2px;
     background: var(--focus-outline);
 }
 
-.slider-container input[type="range"]::-moz-range-thumb {
-    width: 22px;
-    height: 22px;
+.slider-container input[type="range"]::-moz-range-thumb,
+.plan-slider-wrap input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     background: #fff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
     cursor: pointer;
     border: none;
 }
@@ -324,13 +341,6 @@ td {
     align-items: center;
     gap: 4px;
     width: 100%;
-}
-
-.plan-slider-wrap input[type="range"] {
-    flex: 1;
-    min-width: 0;
-    cursor: pointer;
-    accent-color: var(--focus-outline);
 }
 
 .plan-slider-label {
