@@ -541,6 +541,8 @@ function scrollResultToDate(dateStr) {
 
 // ===== ランクカード更新 =====
 function updateRankCard(rank, currentScore, daysLeft, dailyPoints, dayDateStr) {
+    document.querySelector('.card-section h2').textContent =
+        dayDateStr === todayStr() ? '現在カード' : '予測カード';
     document.getElementById('rankCard').className    = `rank-card ${getRankClass(rank)}`;
     document.getElementById('rankLabel').textContent = rank;
     document.getElementById('scoreDisplay').textContent = `${currentScore} / 18`;
