@@ -1,10 +1,66 @@
-/* 全体のスタイル */
+/* ===== CSS変数（ライトモード） ===== */
+:root {
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --text: #333333;
+    --text-secondary: #666666;
+    --border: #d0d8e8;
+    --table-header-bg: #e8eaf0;
+    --table-header-border: #b0b8cc;
+    --input-border: #cccccc;
+    --row-hover: #eef2ff;
+    --row-alt: #f8f9fc;
+    --row-selected: #cce0ff;
+    --select-focus-bg: #cce0ff;
+    --focus-outline: #4a7aff;
+    --shadow: rgba(0, 0, 0, 0.1);
+    --btn-primary: #7a4ce3;
+    --btn-primary-hover: #5d37b0;
+
+    /* テーマ切り替えボタン */
+    --theme-ctrl-bg: #e8eaf0;
+    --theme-ctrl-border: #c8cadc;
+    --theme-btn-text: #555;
+    --theme-btn-active-bg: #ffffff;
+    --theme-btn-active-text: #333;
+    --theme-btn-active-shadow: rgba(0, 0, 0, 0.12);
+}
+
+/* ===== ダークモード変数 ===== */
+[data-theme="dark"] {
+    --bg: #121218;
+    --surface: #1e1e2c;
+    --text: #e0e0f0;
+    --text-secondary: #9090b0;
+    --border: #3a3a58;
+    --table-header-bg: #272738;
+    --table-header-border: #484868;
+    --input-border: #484868;
+    --row-hover: #252540;
+    --row-alt: #1a1a28;
+    --row-selected: #2a3a6e;
+    --select-focus-bg: #2a3a6e;
+    --focus-outline: #6a8aff;
+    --shadow: rgba(0, 0, 0, 0.4);
+    --btn-primary: #8a5cf3;
+    --btn-primary-hover: #a478f8;
+
+    --theme-ctrl-bg: #2a2a3e;
+    --theme-ctrl-border: #484868;
+    --theme-btn-text: #9090b0;
+    --theme-btn-active-bg: #3a3a58;
+    --theme-btn-active-text: #e0e0f0;
+    --theme-btn-active-shadow: rgba(0, 0, 0, 0.4);
+}
+
+/* ===== 全体 ===== */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background-color: #f5f5f5;
+    background-color: var(--bg);
     margin: 0;
     padding: 0;
-    color: #333;
+    color: var(--text);
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .container {
@@ -13,23 +69,64 @@ body {
     padding: 20px;
 }
 
+/* ===== ヘッダー行（タイトル + テーマ切り替え） ===== */
+.header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
 h1 {
-    text-align: center;
-    color: #333;
+    margin: 0;
+    color: var(--text);
+    font-size: 24px;
 }
 
 h2 {
     margin-top: 0;
-    color: #333;
+    color: var(--text);
 }
 
-/* セクションスタイル */
-.input-section, .plan-section, .result-section, .card-section {
-    background-color: #ffffff;
+/* ===== テーマ切り替えボタン ===== */
+.theme-controls {
+    display: flex;
+    background: var(--theme-ctrl-bg);
+    border: 1px solid var(--theme-ctrl-border);
     border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    padding: 3px;
+    gap: 2px;
+}
+
+.theme-btn {
+    padding: 5px 12px;
+    border: none;
+    background: transparent;
+    color: var(--theme-btn-text);
+    font-size: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+}
+
+.theme-btn.active {
+    background: var(--theme-btn-active-bg);
+    color: var(--theme-btn-active-text);
+    box-shadow: 0 1px 3px var(--theme-btn-active-shadow);
+    font-weight: 600;
+}
+
+/* ===== セクション ===== */
+.input-section, .plan-section, .result-section, .card-section {
+    background-color: var(--surface);
+    border-radius: 8px;
+    box-shadow: 0 2px 6px var(--shadow);
     padding: 15px;
     margin-bottom: 20px;
+    transition: background-color 0.2s;
 }
 
 .form-row {
@@ -42,54 +139,131 @@ h2 {
 .form-row label {
     flex: 0 0 140px;
     font-weight: bold;
+    color: var(--text);
 }
 
-.form-row input[type="number"], .form-row select {
+.form-row input[type="number"],
+.form-row input[type="date"],
+.form-row select {
     flex: 1;
     padding: 6px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--input-border);
     border-radius: 4px;
     font-size: 14px;
+    background: var(--surface);
+    color: var(--text);
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
 }
 
-/* テーブルスタイル */
+/* ===== Excel風テーブル ===== */
 table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
-}
-
-th, td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: center;
     font-size: 14px;
 }
 
 th {
-    background-color: #f0f0f0;
+    background-color: var(--table-header-bg);
+    color: var(--text);
     font-weight: bold;
+    border: 1px solid var(--table-header-border);
+    padding: 6px 8px;
+    text-align: center;
+    user-select: none;
 }
 
-/* ボタン */
+td {
+    border: 1px solid var(--border);
+    padding: 4px 6px;
+    text-align: center;
+    color: var(--text);
+    background-color: var(--surface);
+    transition: background-color 0.15s;
+}
+
+#planTable tbody tr:nth-child(even) td {
+    background-color: var(--row-alt);
+}
+
+#planTable tbody tr:hover td {
+    background-color: var(--row-hover);
+}
+
+#planTable td select {
+    width: 100%;
+    padding: 3px 4px;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    outline: none;
+}
+
+#planTable td select:focus {
+    background-color: var(--select-focus-bg);
+    outline: 2px solid var(--focus-outline);
+}
+
+#planTable td input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--focus-outline);
+}
+
+/* 結果テーブル */
+#resultTable tbody tr {
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+#resultTable tbody tr:nth-child(even) td {
+    background-color: var(--row-alt);
+}
+
+#resultTable tbody tr:hover td {
+    background-color: var(--row-hover);
+}
+
+#resultTable tbody tr.selected-row td {
+    background-color: var(--row-selected) !important;
+}
+
+/* ランクセル着色 */
+td.rank-cell { font-weight: bold; }
+td.rank-cell.rank-s { color: #e8305a; }
+td.rank-cell.rank-a { color: #c01870; }
+td.rank-cell.rank-b { color: #7b3ec8; }
+td.rank-cell.rank-c { color: #1a60c8; }
+td.rank-cell.rank-d { color: #546e7a; }
+
+[data-theme="dark"] td.rank-cell.rank-s { color: #ff6090; }
+[data-theme="dark"] td.rank-cell.rank-a { color: #ff50a8; }
+[data-theme="dark"] td.rank-cell.rank-b { color: #b080f0; }
+[data-theme="dark"] td.rank-cell.rank-c { color: #5898f8; }
+[data-theme="dark"] td.rank-cell.rank-d { color: #90a4ae; }
+
+/* ===== ボタン ===== */
 #calculateButton {
     display: block;
-    margin: 0 auto;
+    margin: 0 auto 20px;
     padding: 10px 20px;
-    background-color: #7a4ce3;
+    background-color: var(--btn-primary);
     color: #fff;
     border: none;
     border-radius: 5px;
     font-size: 16px;
     cursor: pointer;
-    transition: background-color 0.2s ease-in-out;
+    transition: background-color 0.2s;
 }
 
 #calculateButton:hover {
-    background-color: #5d37b0;
+    background-color: var(--btn-primary-hover);
 }
 
-/* ランクカード */
+/* ===== ランクカード ===== */
 .card-section {
     text-align: center;
 }
@@ -102,7 +276,14 @@ th {
     color: #fff;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     width: 300px;
+    transition: background 0.3s ease;
 }
+
+.rank-card.rank-s  { background: linear-gradient(135deg, #ff2060, #ff6a00); }
+.rank-card.rank-a  { background: linear-gradient(135deg, #ff1480, #ff4060); }
+.rank-card.rank-b  { background: linear-gradient(135deg, #7b3ec8, #b06ae8); }
+.rank-card.rank-c  { background: linear-gradient(135deg, #1a3ab8, #2b60e8); }
+.rank-card.rank-d  { background: linear-gradient(135deg, #546e7a, #90a4ae); }
 
 .rank-card .rank-header {
     font-size: 48px;

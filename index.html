@@ -8,7 +8,14 @@
 </head>
 <body>
     <div class="container">
-        <h1>IRIAMランク管理ツール</h1>
+        <div class="header-row">
+            <h1>IRIAMランク管理ツール</h1>
+            <div class="theme-controls" id="themeControls">
+                <button class="theme-btn active" data-value="auto">デバイス</button>
+                <button class="theme-btn" data-value="light">ライト</button>
+                <button class="theme-btn" data-value="dark">ダーク</button>
+            </div>
+        </div>
 
         <section class="input-section">
             <h2>現在の状態</h2>
@@ -19,6 +26,10 @@
             <div class="form-row">
                 <label for="currentScore">現在ランクスコア:</label>
                 <input type="number" id="currentScore" min="0" max="18" value="0">
+            </div>
+            <div class="form-row">
+                <label for="startDate">開始日:</label>
+                <input type="date" id="startDate">
             </div>
             <div class="form-row">
                 <label for="daysLeft">残り日数:</label>
@@ -40,9 +51,7 @@
                         <th>スキップパス使用</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <!-- JavaScript で行を追加 -->
-                </tbody>
+                <tbody></tbody>
             </table>
         </section>
 
@@ -59,9 +68,7 @@
                         <th>残りスキップパス</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <!-- ここに結果行を挿入 -->
-                </tbody>
+                <tbody></tbody>
             </table>
         </section>
 
