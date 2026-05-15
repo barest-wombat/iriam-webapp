@@ -33,8 +33,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 開始日は常に今日
-    document.getElementById('startDate').value = todayStr();
+    // 開始日は今日以降のみ
+    const startDateInput = document.getElementById('startDate');
+    startDateInput.min = todayStr();
+    startDateInput.value = todayStr();
 
     // localStorage から状態を復元（なければデフォルト）
     const saved = loadState();
@@ -44,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('currentScoreSlider').value = Math.min(18, Math.max(0, saved.score ?? 0));
         document.getElementById('daysLeftSlider').value     = Math.min(7,  Math.max(1, saved.daysLeft ?? 7));
         document.getElementById('skipPassesSlider').value   = Math.min(10, Math.max(0, saved.skipPasses ?? 0));
+        startDateInput.value = normalizeStartDate(saved.startDate);
         buildCalendarTable(saved.planByDate || {});
     } else {
         document.getElementById('currentRankSlider').value  = RANK_VALUES.indexOf('B2');
@@ -95,8 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 開始日変更（その日付の行にスクロール）
-    document.getElementById('startDate').addEventListener('change', () => {
-        scrollToDate(document.getElementById('startDate').value);
+    document.getElementById('startDate').addEventListener('change', e => {
+        e.target.value = normalizeStartDate(e.target.value);
+        scrollToDate(e.target.value);
         saveState();
     });
 
@@ -166,6 +170,11 @@ function toLocalDateStr(date) {
 
 function todayStr() {
     return toLocalDateStr(new Date());
+}
+
+function normalizeStartDate(dateStr) {
+    const today = todayStr();
+    return dateStr && dateStr >= today ? dateStr : today;
 }
 
 function formatDateWithOffset(baseDateStr, offset) {
@@ -241,6 +250,7 @@ function saveState() {
         score:      getScore(),
         daysLeft:   getDaysLeft(),
         skipPasses: getSkipPasses(),
+        startDate:  normalizeStartDate(document.getElementById('startDate').value),
         planByDate,
     };
     localStorage.setItem('iriam-state', JSON.stringify(state));
@@ -253,17 +263,16 @@ function loadState() {
     } catch { return null; }
 }
 
-// ===== カレンダー形式の予定テーブル構築（過去7日＋未来30日、一度だけ生成） =====
+// ===== カレンダー形式の予定テーブル構築（今日＋未来30日、一度だけ生成） =====
 function buildCalendarTable(planByDate) {
     const tbody = document.getElementById('planTable').querySelector('tbody');
     tbody.innerHTML = '';
 
     const today    = todayStr();
     const baseDate = new Date(today + 'T00:00:00');
-    const PAST   = 7;
     const FUTURE = 30;
 
-    for (let i = -PAST; i <= FUTURE; i++) {
+    for (let i = 0; i <= FUTURE; i++) {
         const d = new Date(baseDate);
         d.setDate(d.getDate() + i);
         const dateStr    = toLocalDateStr(d);
@@ -456,7 +465,7 @@ function calculateResults() {
     const allRows     = Array.from(document.getElementById('planTable').querySelector('tbody').rows);
     const startRowIdx = allRows.findIndex(r => r.dataset.date === startDateStr);
     if (startRowIdx === -1) {
-        alert('開始日が表の範囲外です。表示範囲内（過去7日〜未来30日）で設定してください。');
+        alert('開始日が表の範囲外です。表示範囲内（今日〜未来30日）で設定してください。');
         return;
     }
 
