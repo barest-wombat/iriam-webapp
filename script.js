@@ -192,6 +192,42 @@ function getDateStr(baseDateStr, offset) {
     return toLocalDateStr(date);
 }
 
+function isMonday(dateStr) {
+    return new Date(dateStr + 'T00:00:00').getDay() === 1;
+}
+
+function getPreviousWeekRange(dateStr) {
+    const date = new Date(dateStr + 'T00:00:00');
+    const day = date.getDay();
+    const daysSinceMonday = (day + 6) % 7;
+    const thisMonday = new Date(date);
+    thisMonday.setDate(date.getDate() - daysSinceMonday);
+
+    const previousMonday = new Date(thisMonday);
+    previousMonday.setDate(thisMonday.getDate() - 7);
+
+    const previousSunday = new Date(previousMonday);
+    previousSunday.setDate(previousMonday.getDate() + 6);
+
+    return {
+        start: toLocalDateStr(previousMonday),
+        end:   toLocalDateStr(previousSunday),
+    };
+}
+
+function hasStreamedInPreviousWeek(dateStr, dailyPointsByDate) {
+    const { start, end } = getPreviousWeekRange(dateStr);
+    return Object.entries(dailyPointsByDate).some(([date, points]) => {
+        return date >= start && date <= end && points > 0;
+    });
+}
+
+function grantWeeklySkipPassIfNeeded(dateStr, skipPasses, dailyPointsByDate) {
+    if (!isMonday(dateStr)) return skipPasses;
+    if (!hasStreamedInPreviousWeek(dateStr, dailyPointsByDate)) return skipPasses;
+    return Math.min(10, skipPasses + 1);
+}
+
 function formatDateStr(dateStr) {
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
     const d = new Date(dateStr + 'T00:00:00');
@@ -468,6 +504,11 @@ function calculateResults() {
         alert('開始日が表の範囲外です。表示範囲内（今日〜未来30日）で設定してください。');
         return;
     }
+    const dailyPointsByDate = {};
+    allRows.forEach(row => {
+        const slider = row.cells[1].querySelector('input[type="range"]');
+        dailyPointsByDate[row.dataset.date] = slider ? POINT_VALUES[parseInt(slider.value, 10)] : 0;
+    });
 
     const dayStates = [];
 
@@ -478,12 +519,9 @@ function calculateResults() {
 
     // 開始日以降をシミュレーション
     for (let i = startRowIdx; i < allRows.length; i++) {
-        const slider      = allRows[i].cells[1].querySelector('input[type="range"]');
-        const dailyPoints = slider ? POINT_VALUES[parseInt(slider.value, 10)] : 0;
-        const skipUsed    = allRows[i].cells[2].querySelector('input[type="checkbox"]').checked;
         const date        = allRows[i].dataset.date;
-
-        dayStates.push({ rank: currentRank, score: currentScore, daysLeft, dailyPoints, skipPasses, date, pre: false });
+        const dailyPoints = dailyPointsByDate[date] || 0;
+        const skipUsed    = allRows[i].cells[2].querySelector('input[type="checkbox"]').checked;
 
         if (skipUsed && skipPasses > 0) {
             skipPasses -= 1;
@@ -503,6 +541,9 @@ function calculateResults() {
                 }
             }
         }
+
+        skipPasses = grantWeeklySkipPassIfNeeded(date, skipPasses, dailyPointsByDate);
+        dayStates.push({ rank: currentRank, score: currentScore, daysLeft, dailyPoints, skipPasses, date, pre: false });
     }
 
     // テーブル行を構築
