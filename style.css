@@ -218,6 +218,12 @@ h2 {
     -webkit-overflow-scrolling: touch;
 }
 
+/* 予定テーブルは縦スクロール固定高さ */
+.plan-section .table-scroll {
+    max-height: 260px;
+    overflow-y: auto;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -235,6 +241,9 @@ th {
     text-align: center;
     user-select: none;
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 td {
@@ -326,6 +335,14 @@ td {
 
 .skip-ticket:has(.skip-cb:checked) .ticket-icon {
     color: var(--focus-outline);
+}
+
+.skip-ticket:has(.skip-cb:checked) .ticket-icon svg rect {
+    fill: currentColor;
+}
+
+.skip-ticket:has(.skip-cb:checked) .ticket-icon svg line {
+    stroke: var(--surface);
 }
 
 /* スクロール対象行のフラッシュアニメーション */
