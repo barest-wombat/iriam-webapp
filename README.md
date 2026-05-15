@@ -27,7 +27,7 @@ python3 -m http.server 8000
 
 - `index.html`: 画面構造
 - `style.css`: テーマ、フォーム、テーブル、予測カード、モバイル表示のスタイル
-- `script.js`: 初期化、入力保存、予定表生成、ランク計算、結果表示
+- `script.js`: 初期化、入力保存、予定表生成、DOM 非依存のランク計算、結果表示
 - `sw.js`: PWA 用 Service Worker
 - `manifest.json`: PWA マニフェスト
 - `icons/`: PWA アイコン
