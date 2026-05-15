@@ -531,11 +531,11 @@ function calculateResults() {
         });
     });
 
-    // デフォルトは最終シミュレーション行の状態を表示
+    // デフォルトは開始日（最初のシミュレーション行）の状態を表示
     const simStates = dayStates.filter(s => !s.pre);
     if (simStates.length > 0) {
-        const last = simStates[simStates.length - 1];
-        updateRankCard(last.rank, last.score, last.daysLeft, last.dailyPoints, last.date);
+        const first = simStates[0];
+        updateRankCard(first.rank, first.score, first.daysLeft, first.dailyPoints, first.date);
     }
 
     // 計算後に開始日の行へスクロール
