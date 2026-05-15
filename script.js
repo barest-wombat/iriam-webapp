@@ -73,9 +73,10 @@ document.addEventListener('DOMContentLoaded', () => {
         saveState();
     });
 
-    // 開始日変更（既存行の値を日付キーで引き継ぎ）
+    // 開始日変更（localStorage の全保存データ + 現在DOM行を合わせて引き継ぎ）
     document.getElementById('startDate').addEventListener('change', () => {
-        buildPlanTable(document.getElementById('startDate').value, {});
+        const st = loadState();
+        buildPlanTable(document.getElementById('startDate').value, st?.planByDate || {});
         saveState();
     });
 
@@ -162,16 +163,16 @@ function updateButtonGradient(rank) {
 
 // ===== localStorage =====
 function saveState() {
+    const startDateStr = document.getElementById('startDate').value;
     const planRows = document.getElementById('planTable').querySelector('tbody').rows;
     const planByDate = {};
-    Array.from(planRows).forEach(row => {
-        const dateStr = row.cells[0].dataset.date;
-        if (dateStr) {
-            planByDate[dateStr] = {
-                point: row.cells[1].querySelector('select').value,
-                skip:  row.cells[2].querySelector('input[type="checkbox"]').checked,
-            };
-        }
+    Array.from(planRows).forEach((row, i) => {
+        // data-date がなければ開始日＋インデックスから計算（SW旧キャッシュ対策）
+        const dateStr = row.cells[0].dataset.date || getDateStr(startDateStr, i);
+        planByDate[dateStr] = {
+            point: row.cells[1].querySelector('select').value,
+            skip:  row.cells[2].querySelector('input[type="checkbox"]').checked,
+        };
     });
     const state = {
         rank:       document.getElementById('currentRank').value,
@@ -270,9 +271,6 @@ function handleArrowKey(e) {
         focused.dispatchEvent(new Event('change'));
         return;
     }
-
-    // selectの上下キーはネイティブ動作に任せる
-    if (isSelect && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return;
 
     const isArrow = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
     const isEnter = e.key === 'Enter';
