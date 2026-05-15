@@ -267,8 +267,8 @@ function buildPlanTable(startDateStr, planByDate) {
         pointSlider.max   = POINT_VALUES.length - 1;
         pointSlider.step  = 1;
 
-        const savedIdx = savedEntry ? Math.max(0, POINT_VALUES.indexOf(Number(savedEntry.point))) : 0;
-        pointSlider.value = savedIdx >= 0 ? savedIdx : 0;
+        const savedIdx = savedEntry ? Math.max(0, POINT_VALUES.indexOf(Number(savedEntry.point))) : 1;
+        pointSlider.value = savedIdx >= 0 ? savedIdx : 1;
 
         const pointLabel = document.createElement('span');
         pointLabel.className = 'plan-slider-label';
@@ -298,7 +298,7 @@ function buildPlanTable(startDateStr, planByDate) {
 
         const icon = document.createElement('span');
         icon.className = 'ticket-icon';
-        icon.textContent = '🎫';
+        icon.innerHTML = `<svg viewBox="0 0 20 12" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="0.75" y="0.75" width="18.5" height="10.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/><line x1="5.5" y1="0.75" x2="5.5" y2="11.25" stroke="currentColor" stroke-width="1" stroke-dasharray="1.5 1.5"/></svg>`;
 
         label.appendChild(cb);
         label.appendChild(icon);
