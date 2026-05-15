@@ -510,7 +510,14 @@ function calculateResults() {
         dailyPointsByDate[row.dataset.date] = slider ? POINT_VALUES[parseInt(slider.value, 10)] : 0;
     });
 
-    const dayStates = [];
+    const dayStates = [{
+        rank: currentRank,
+        score: currentScore,
+        daysLeft,
+        skipPasses,
+        pre: false,
+        isCurrent: true,
+    }];
 
     // 開始日より前は空表示
     for (let i = 0; i < startRowIdx; i++) {
@@ -543,13 +550,14 @@ function calculateResults() {
         }
 
         skipPasses = grantWeeklySkipPassIfNeeded(date, skipPasses, dailyPointsByDate);
-        dayStates.push({ rank: currentRank, score: currentScore, daysLeft, dailyPoints, skipPasses, date, pre: false });
+        dayStates.push({ rank: currentRank, score: currentScore, daysLeft, dailyPoints, skipPasses, date, pre: false, isCurrent: false });
     }
 
     // テーブル行を構築
     dayStates.forEach(s => {
         const tr = document.createElement('tr');
-        tr.dataset.date = s.date;
+        if (s.date) tr.dataset.date = s.date;
+        if (s.isCurrent) tr.dataset.state = 'current';
         if (s.date === todayStr()) tr.classList.add('today-row');
 
         if (s.pre) {
@@ -560,7 +568,8 @@ function calculateResults() {
             });
         } else {
             tr.style.cursor = 'pointer';
-            [formatDateStr(s.date), s.rank, `${s.score}`, `${s.skipPasses}`].forEach((text, ci) => {
+            const dateLabel = s.isCurrent ? '現在' : formatDateStr(s.date);
+            [dateLabel, s.rank, `${s.score}`, `${s.skipPasses}`].forEach((text, ci) => {
                 const td = document.createElement('td');
                 td.textContent = text;
                 if (ci === 1) td.className = `rank-cell ${getRankClass(s.rank)}`;
@@ -577,19 +586,27 @@ function calculateResults() {
         tr.addEventListener('click', () => {
             Array.from(resultTbody.rows).forEach(r => r.classList.remove('selected-row'));
             tr.classList.add('selected-row');
-            updateRankCard(s.rank, s.score, s.daysLeft, s.dailyPoints, s.date);
+            updateRankCard(s.rank, s.score, s.daysLeft, s.dailyPoints, s.date, s.isCurrent);
         });
     });
 
-    // デフォルトは開始日（最初のシミュレーション行）の状態を表示
+    // デフォルトは現在の状態を表示
     const simStates = dayStates.filter(s => !s.pre);
     if (simStates.length > 0) {
         const first = simStates[0];
-        updateRankCard(first.rank, first.score, first.daysLeft, first.dailyPoints, first.date);
+        updateRankCard(first.rank, first.score, first.daysLeft, first.dailyPoints, first.date, first.isCurrent);
+        const currentRow = Array.from(resultTbody.rows).find(r => r.dataset.state === 'current');
+        if (currentRow) currentRow.classList.add('selected-row');
     }
 
-    // 計算後に開始日の行へスクロール
-    setTimeout(() => scrollResultToDate(startDateStr), 0);
+    // 計算後は先頭の現在行へ戻す
+    setTimeout(scrollResultToCurrent, 0);
+}
+
+function scrollResultToCurrent() {
+    const container = document.querySelector('.result-section .table-scroll');
+    if (!container) return;
+    container.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ===== 計算結果表の日付指定スクロール =====
@@ -605,16 +622,16 @@ function scrollResultToDate(dateStr) {
 }
 
 // ===== ランクカード更新 =====
-function updateRankCard(rank, currentScore, daysLeft, dailyPoints, dayDateStr) {
+function updateRankCard(rank, currentScore, daysLeft, dailyPoints, dayDateStr, isCurrent = false) {
     document.querySelector('.card-section h2').textContent =
-        dayDateStr === todayStr() ? '現在カード' : '予測カード';
+        isCurrent ? '現在カード' : '予測カード';
     document.getElementById('rankCard').className    = `rank-card ${getRankClass(rank)}`;
     document.getElementById('rankLabel').textContent = rank;
     document.getElementById('scoreDisplay').textContent = `${currentScore} / 18`;
 
     const suffix     = currentScore >= 12 ? 'リセット' : 'ランクダウン';
     const daysInfoEl = document.getElementById('daysInfo');
-    if (daysLeft === 1 && dayDateStr === todayStr()) {
+    if (daysLeft === 1 && isCurrent) {
         const { hours, minutes } = getTimeUntilMidnight();
         daysInfoEl.textContent       = `あと${hours}時間${minutes}分で${suffix}`;
         daysInfoEl.dataset.timeMode  = 'true';
@@ -626,15 +643,24 @@ function updateRankCard(rank, currentScore, daysLeft, dailyPoints, dayDateStr) {
 
     document.getElementById('keepNeeded').textContent = `あと+${Math.max(0, 12 - currentScore)}`;
     document.getElementById('upNeeded').textContent   = `あと+${Math.max(0, 18 - currentScore)}`;
-    document.getElementById('dailyScore').textContent = `+${dailyPoints}`;
 
+    const dailyScoreContainer = document.querySelector('.rank-card .daily-score');
+    document.getElementById('dailyScore').textContent = `+${dailyPoints ?? 0}`;
     const timeEl = document.getElementById('dailyTimeLeft');
-    if (dayDateStr && dayDateStr === todayStr()) {
+    if (isCurrent) {
+        dailyScoreContainer.style.display = 'none';
+        timeEl.dataset.isToday = 'false';
+        timeEl.style.display   = 'none';
+    } else {
+        dailyScoreContainer.style.display = '';
+    }
+
+    if (!isCurrent && dayDateStr && dayDateStr === todayStr()) {
         const { hours, minutes } = getTimeUntilMidnight();
         timeEl.dataset.isToday = 'true';
         timeEl.textContent     = `あと ${hours}時間${minutes}分`;
         timeEl.style.display   = '';
-    } else {
+    } else if (!isCurrent) {
         timeEl.dataset.isToday = 'false';
         timeEl.style.display   = 'none';
     }
