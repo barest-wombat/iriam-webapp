@@ -392,7 +392,8 @@ function scrollToDate(dateStr) {
     // コンテナ内の相対位置だけスクロール（ページ全体には影響しない）
     const containerRect = container.getBoundingClientRect();
     const rowRect = row.getBoundingClientRect();
-    container.scrollBy({ top: rowRect.top - containerRect.top, behavior: 'smooth' });
+    const theadHeight = document.querySelector('#planTable thead').offsetHeight;
+    container.scrollBy({ top: rowRect.top - containerRect.top - theadHeight, behavior: 'smooth' });
 
     Array.from(tbody.rows).forEach(r => r.classList.remove('scroll-target'));
     row.classList.add('scroll-target');

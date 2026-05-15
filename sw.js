@@ -1,4 +1,4 @@
-const CACHE = 'iriam-rank-v11';
+const CACHE = 'iriam-rank-v12';
 const ASSETS = [
     './',
     './index.html',
