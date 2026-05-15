@@ -2,12 +2,8 @@
 (function initTheme() {
     const saved = localStorage.getItem('iriam-theme') || 'auto';
     applyTheme(saved);
-
-    // システムの配色変更を監視（autoのときのみ反映）
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-        if ((localStorage.getItem('iriam-theme') || 'auto') === 'auto') {
-            applyTheme('auto');
-        }
+        if ((localStorage.getItem('iriam-theme') || 'auto') === 'auto') applyTheme('auto');
     });
 })();
 
@@ -17,12 +13,24 @@ function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', resolved);
 }
 
-// IRIAMランク管理Webアプリのスクリプト
+// ===== ランクグラデーション定義 =====
+const RANK_GRADIENTS = {
+    'rank-s': 'linear-gradient(135deg, #ff2060, #ff6a00)',
+    'rank-a': 'linear-gradient(135deg, #ff1480, #ff4060)',
+    'rank-b': 'linear-gradient(135deg, #7b3ec8, #b06ae8)',
+    'rank-c': 'linear-gradient(135deg, #1a3ab8, #2b60e8)',
+    'rank-d': 'linear-gradient(135deg, #546e7a, #90a4ae)',
+};
+
+// ===== 初期化 =====
 document.addEventListener('DOMContentLoaded', () => {
-    // テーマ切り替えボタン
+    const ranks = ['D', 'C1', 'C2', 'C3', 'C4', 'C5', 'B1', 'B2', 'B3', 'A1', 'A2', 'A3', 'S1', 'S2', 'S3'];
+
+    // テーマボタン
     const savedTheme = localStorage.getItem('iriam-theme') || 'auto';
     document.querySelectorAll('.theme-btn').forEach(btn => {
         if (btn.dataset.value === savedTheme) btn.classList.add('active');
+        else btn.classList.remove('active');
         btn.addEventListener('click', () => {
             document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
@@ -31,62 +39,102 @@ document.addEventListener('DOMContentLoaded', () => {
             applyTheme(t);
         });
     });
-    const ranks = [
-        'D', 'C1', 'C2', 'C3', 'C4', 'C5',
-        'B1', 'B2', 'B3',
-        'A1', 'A2', 'A3',
-        'S1', 'S2', 'S3'
-    ];
 
-    // ランクセレクトに選択肢を追加
+    // ランクセレクト
     const currentRankSelect = document.getElementById('currentRank');
-    ranks.forEach((rank) => {
-        const option = document.createElement('option');
-        option.value = rank;
-        option.textContent = rank;
-        currentRankSelect.appendChild(option);
-    });
-    currentRankSelect.value = 'B2';
-
-    // 開始日を今日に設定
-    const startDateInput = document.getElementById('startDate');
-    const today = new Date();
-    startDateInput.value = today.toISOString().split('T')[0];
-
-    // 予定テーブル行を生成
-    buildPlanTable(startDateInput.value);
-
-    // 開始日変更時に予定テーブルの日付を更新
-    startDateInput.addEventListener('change', () => {
-        buildPlanTable(startDateInput.value);
+    ranks.forEach(rank => {
+        const opt = document.createElement('option');
+        opt.value = opt.textContent = rank;
+        currentRankSelect.appendChild(opt);
     });
 
+    // localStorage から状態を復元（なければデフォルト）
+    const saved = loadState();
+    if (saved) {
+        currentRankSelect.value = saved.rank || 'B2';
+        document.getElementById('currentScore').value  = saved.score ?? 0;
+        document.getElementById('daysLeft').value      = saved.daysLeft ?? 7;
+        document.getElementById('skipPasses').value    = saved.skipPasses ?? 0;
+        document.getElementById('startDate').value     = saved.startDate || todayStr();
+        buildPlanTable(document.getElementById('startDate').value, saved.plan || []);
+    } else {
+        currentRankSelect.value = 'B2';
+        document.getElementById('startDate').value = todayStr();
+        buildPlanTable(todayStr(), []);
+    }
+
+    // 計算ボタンの色を初期ランクに合わせる
+    updateButtonGradient(currentRankSelect.value);
+
+    // ランク変更でボタン色を更新
+    currentRankSelect.addEventListener('change', () => {
+        updateButtonGradient(currentRankSelect.value);
+        saveState();
+    });
+
+    // 開始日変更
+    document.getElementById('startDate').addEventListener('change', () => {
+        buildPlanTable(document.getElementById('startDate').value, []);
+        saveState();
+    });
+
+    // 入力変更時の自動保存
+    ['currentScore', 'daysLeft', 'skipPasses'].forEach(id => {
+        document.getElementById(id).addEventListener('input', saveState);
+    });
+
+    // 計算ボタン
     document.getElementById('calculateButton').addEventListener('click', () => {
         calculateResults(ranks);
     });
+
+    // デイリー残り時間を1分ごとに更新
+    setInterval(refreshDailyTimeLeft, 60000);
+
+    // PWA: Service Worker 登録
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
 });
 
-/**
- * 日付文字列（YYYY-MM-DD）にオフセット日数を加算してフォーマット
- * @param {string} baseDateStr
- * @param {number} offset
- * @returns {string} 例: "5/15（木）"
- */
+// ===== 日付ユーティリティ（すべてローカル時刻で統一） =====
+function toLocalDateStr(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function todayStr() {
+    return toLocalDateStr(new Date());
+}
+
 function formatDateWithOffset(baseDateStr, offset) {
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
     const date = new Date(baseDateStr + 'T00:00:00');
     date.setDate(date.getDate() + offset);
     const m = date.getMonth() + 1;
     const d = date.getDate();
-    const dow = dayNames[date.getDay()];
-    return `${m}/${d}（${dow}）`;
+    return `${m}/${d}（${dayNames[date.getDay()]}）`;
 }
 
-/**
- * ランク文字列からCSSクラス名を返す
- * @param {string} rank
- * @returns {string}
- */
+function getDateStr(baseDateStr, offset) {
+    const date = new Date(baseDateStr + 'T00:00:00');
+    date.setDate(date.getDate() + offset);
+    return toLocalDateStr(date);
+}
+
+function getTimeUntilMidnight() {
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const diff = midnight - now;
+    return {
+        hours: Math.floor(diff / 3600000),
+        minutes: Math.floor((diff % 3600000) / 60000),
+    };
+}
+
+// ===== ランクユーティリティ =====
 function getRankClass(rank) {
     if (rank.startsWith('S')) return 'rank-s';
     if (rank.startsWith('A')) return 'rank-a';
@@ -95,92 +143,163 @@ function getRankClass(rank) {
     return 'rank-d';
 }
 
-/**
- * 予定テーブルを（再）構築する
- * @param {string} startDateStr
- */
-function buildPlanTable(startDateStr) {
-    const planTableBody = document.getElementById('planTable').querySelector('tbody');
-    // 既存の入力値を保持してから再構築
-    const prevValues = [];
-    Array.from(planTableBody.rows).forEach(row => {
-        prevValues.push({
-            point: row.cells[1].querySelector('select').value,
-            skip: row.cells[2].querySelector('input[type="checkbox"]').checked,
-        });
-    });
+function getNextRank(rank, ranks) {
+    const idx = ranks.indexOf(rank);
+    return idx === -1 ? rank : ranks[Math.min(idx + 1, ranks.length - 1)];
+}
 
-    planTableBody.innerHTML = '';
+function getPrevRank(rank, ranks) {
+    const idx = ranks.indexOf(rank);
+    return idx === -1 ? rank : ranks[Math.max(idx - 1, 0)];
+}
+
+// ===== 計算ボタンのグラデーション更新 =====
+function updateButtonGradient(rank) {
+    const btn = document.getElementById('calculateButton');
+    btn.className = getRankClass(rank);
+}
+
+// ===== localStorage =====
+function saveState() {
+    const planRows = document.getElementById('planTable').querySelector('tbody').rows;
+    const state = {
+        rank:       document.getElementById('currentRank').value,
+        score:      document.getElementById('currentScore').value,
+        startDate:  document.getElementById('startDate').value,
+        daysLeft:   document.getElementById('daysLeft').value,
+        skipPasses: document.getElementById('skipPasses').value,
+        plan: Array.from(planRows).map(row => ({
+            point: row.cells[1].querySelector('select').value,
+            skip:  row.cells[2].querySelector('input[type="checkbox"]').checked,
+        })),
+    };
+    localStorage.setItem('iriam-state', JSON.stringify(state));
+}
+
+function loadState() {
+    try {
+        const s = localStorage.getItem('iriam-state');
+        return s ? JSON.parse(s) : null;
+    } catch { return null; }
+}
+
+// ===== 予定テーブル構築 =====
+function buildPlanTable(startDateStr, initValues) {
+    const tbody = document.getElementById('planTable').querySelector('tbody');
+    const existingRows = Array.from(tbody.rows);
+
+    // 既存行があればその値を引き継ぎ、なければ initValues を使う
+    const prevValues = existingRows.length > 0
+        ? existingRows.map(row => ({
+            point: row.cells[1].querySelector('select').value,
+            skip:  row.cells[2].querySelector('input[type="checkbox"]').checked,
+          }))
+        : (initValues || []);
+
+    tbody.innerHTML = '';
     const possiblePoints = [0, 1, 2, 4, 6];
 
     for (let i = 0; i < 7; i++) {
         const tr = document.createElement('tr');
 
+        // 日付セル
         const dayTd = document.createElement('td');
         dayTd.textContent = formatDateWithOffset(startDateStr, i);
         tr.appendChild(dayTd);
 
+        // ポイントセル
         const pointTd = document.createElement('td');
-        const select = document.createElement('select');
+        const sel = document.createElement('select');
         possiblePoints.forEach(pt => {
             const opt = document.createElement('option');
             opt.value = pt;
             opt.textContent = `+${pt}`;
-            select.appendChild(opt);
+            sel.appendChild(opt);
         });
-        if (prevValues[i]) select.value = prevValues[i].point;
-        pointTd.appendChild(select);
+        if (prevValues[i]) sel.value = prevValues[i].point;
+        sel.addEventListener('change', saveState);
+        pointTd.appendChild(sel);
         tr.appendChild(pointTd);
 
+        // スキップセル
         const skipTd = document.createElement('td');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        if (prevValues[i]) checkbox.checked = prevValues[i].skip;
-        skipTd.appendChild(checkbox);
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        if (prevValues[i]) cb.checked = prevValues[i].skip;
+        cb.addEventListener('change', saveState);
+        skipTd.appendChild(cb);
         tr.appendChild(skipTd);
 
-        planTableBody.appendChild(tr);
+        tbody.appendChild(tr);
     }
+
+    setupArrowKeyNav();
 }
 
-function getNextRank(rank, ranks) {
-    const idx = ranks.indexOf(rank);
-    if (idx === -1) return rank;
-    return ranks[Math.min(idx + 1, ranks.length - 1)];
+// ===== 矢印キーナビゲーション =====
+function setupArrowKeyNav() {
+    const tbody = document.getElementById('planTable').querySelector('tbody');
+    // 既存のリスナーを削除して再設定
+    tbody.removeEventListener('keydown', handleArrowKey);
+    tbody.addEventListener('keydown', handleArrowKey);
 }
 
-function getPrevRank(rank, ranks) {
-    const idx = ranks.indexOf(rank);
-    if (idx === -1) return rank;
-    return ranks[Math.max(idx - 1, 0)];
+function handleArrowKey(e) {
+    const focused = document.activeElement;
+    const cell = focused.closest('td');
+    if (!cell) return;
+
+    const isSelect = focused.tagName === 'SELECT';
+    const isCheckbox = focused.type === 'checkbox';
+
+    // selectの上下キーはネイティブ動作に任せる
+    if (isSelect && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return;
+
+    const isArrow = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
+    const isEnter = e.key === 'Enter';
+    if (!isArrow && !isEnter) return;
+    if (isEnter && isCheckbox) return; // チェックボックスのSpaceはネイティブ
+
+    e.preventDefault();
+
+    const row = cell.parentElement;
+    const rows = Array.from(row.parentElement.rows);
+    const cols = Array.from(row.cells);
+    const rowIdx = rows.indexOf(row);
+    const colIdx = cols.indexOf(cell);
+
+    let targetRow = rowIdx;
+    let targetCol = colIdx;
+
+    if (e.key === 'ArrowUp'    || (isEnter && e.shiftKey)) targetRow = Math.max(0, rowIdx - 1);
+    if (e.key === 'ArrowDown'  || (isEnter && !e.shiftKey)) targetRow = Math.min(rows.length - 1, rowIdx + 1);
+    if (e.key === 'ArrowLeft')  targetCol = Math.max(1, colIdx - 1); // col 0 は日付（スキップ）
+    if (e.key === 'ArrowRight') targetCol = Math.min(cols.length - 1, colIdx + 1);
+
+    const targetCell = rows[targetRow].cells[targetCol];
+    const interactive = targetCell.querySelector('select, input');
+    if (interactive) interactive.focus();
 }
 
-/**
- * シミュレーション実行
- * @param {Array<string>} ranks
- */
+// ===== シミュレーション計算 =====
 function calculateResults(ranks) {
     const startDateStr = document.getElementById('startDate').value;
-    let currentRank = document.getElementById('currentRank').value;
+    let currentRank  = document.getElementById('currentRank').value;
     let currentScore = parseInt(document.getElementById('currentScore').value, 10) || 0;
-    let daysLeft = parseInt(document.getElementById('daysLeft').value, 10) || 7;
-    let skipPasses = parseInt(document.getElementById('skipPasses').value, 10) || 0;
+    let daysLeft     = parseInt(document.getElementById('daysLeft').value, 10) || 7;
+    let skipPasses   = parseInt(document.getElementById('skipPasses').value, 10) || 0;
 
-    if (daysLeft < 1) daysLeft = 1;
-    if (daysLeft > 7) daysLeft = 7;
+    daysLeft = Math.max(1, Math.min(7, daysLeft));
 
-    const resultTableBody = document.getElementById('resultTable').querySelector('tbody');
-    resultTableBody.innerHTML = '';
+    const resultTbody = document.getElementById('resultTable').querySelector('tbody');
+    resultTbody.innerHTML = '';
 
     const planRows = document.getElementById('planTable').querySelector('tbody').rows;
-
-    // 各日の状態を保存しておく（行クリック時に使用）
     const dayStates = [];
 
     for (let i = 0; i < planRows.length; i++) {
-        const row = planRows[i];
-        const dailyPoints = parseInt(row.cells[1].querySelector('select').value, 10) || 0;
-        const skipUsed = row.cells[2].querySelector('input[type="checkbox"]').checked;
+        const dailyPoints = parseInt(planRows[i].cells[1].querySelector('select').value, 10) || 0;
+        const skipUsed    = planRows[i].cells[2].querySelector('input[type="checkbox"]').checked;
 
         if (skipUsed && skipPasses > 0) {
             skipPasses -= 1;
@@ -189,83 +308,76 @@ function calculateResults(ranks) {
             currentScore += dailyPoints;
             daysLeft -= 1;
             if (daysLeft <= 0) {
-                if (currentScore >= 18) {
-                    currentRank = getNextRank(currentRank, ranks);
-                } else if (currentScore < 12) {
-                    currentRank = getPrevRank(currentRank, ranks);
-                }
+                if (currentScore >= 18)      currentRank = getNextRank(currentRank, ranks);
+                else if (currentScore < 12)  currentRank = getPrevRank(currentRank, ranks);
                 currentScore = 0;
                 daysLeft = 7;
             }
         }
 
-        const state = {
-            rank: currentRank,
-            score: currentScore,
-            daysLeft,
-            dailyPoints,
-            skipPasses,
-        };
-        dayStates.push(state);
+        dayStates.push({ rank: currentRank, score: currentScore, daysLeft, dailyPoints, skipPasses, date: getDateStr(startDateStr, i) });
 
-        const dateLabel = formatDateWithOffset(startDateStr, i);
         const tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
-        tr.dataset.dayIndex = i;
 
-        const tdDay = document.createElement('td');
-        tdDay.textContent = dateLabel;
-        tr.appendChild(tdDay);
+        const cells = [
+            formatDateWithOffset(startDateStr, i),
+            `${currentScore}`,
+            currentRank,
+            `${skipPasses}`,
+        ];
+        cells.forEach((text, ci) => {
+            const td = document.createElement('td');
+            td.textContent = text;
+            if (ci === 2) td.className = `rank-cell ${getRankClass(currentRank)}`;
+            tr.appendChild(td);
+        });
 
-        const tdScore = document.createElement('td');
-        tdScore.textContent = `${currentScore}`;
-        tr.appendChild(tdScore);
-
-        const tdRank = document.createElement('td');
-        tdRank.textContent = currentRank;
-        tdRank.className = `rank-cell ${getRankClass(currentRank)}`;
-        tr.appendChild(tdRank);
-
-        const tdSkip = document.createElement('td');
-        tdSkip.textContent = `${skipPasses}`;
-        tr.appendChild(tdSkip);
-
-        resultTableBody.appendChild(tr);
+        resultTbody.appendChild(tr);
     }
 
     // 行クリックでカード更新
-    Array.from(resultTableBody.rows).forEach((tr, i) => {
+    Array.from(resultTbody.rows).forEach((tr, i) => {
         tr.addEventListener('click', () => {
-            // 選択状態のハイライト
-            Array.from(resultTableBody.rows).forEach(r => r.classList.remove('selected-row'));
+            Array.from(resultTbody.rows).forEach(r => r.classList.remove('selected-row'));
             tr.classList.add('selected-row');
             const s = dayStates[i];
-            updateRankCard(s.rank, s.score, s.daysLeft, s.dailyPoints);
+            updateRankCard(s.rank, s.score, s.daysLeft, s.dailyPoints, s.date);
         });
     });
 
-    // 最終日の状態でカードを初期表示
+    // 最終日のカードを表示
     const last = dayStates[dayStates.length - 1];
-    updateRankCard(last.rank, last.score, last.daysLeft, last.dailyPoints);
+    updateRankCard(last.rank, last.score, last.daysLeft, last.dailyPoints, last.date);
 }
 
-/**
- * ランクカードを更新する
- */
-function updateRankCard(rank, currentScore, daysLeft, dailyPoints) {
-    const card = document.getElementById('rankCard');
-
-    // ランク色クラスを付け替え
-    card.className = `rank-card ${getRankClass(rank)}`;
-
-    document.getElementById('rankLabel').textContent = rank;
+// ===== ランクカード更新 =====
+function updateRankCard(rank, currentScore, daysLeft, dailyPoints, dayDateStr) {
+    document.getElementById('rankCard').className = `rank-card ${getRankClass(rank)}`;
+    document.getElementById('rankLabel').textContent    = rank;
     document.getElementById('scoreDisplay').textContent = `${currentScore} / 18`;
-    document.getElementById('daysInfo').textContent = `残り${daysLeft}日でランクダウン`;
+    document.getElementById('daysInfo').textContent     = `残り${daysLeft}日でランクダウン`;
+    document.getElementById('keepNeeded').textContent   = `あと+${Math.max(0, 12 - currentScore)}`;
+    document.getElementById('upNeeded').textContent     = `あと+${Math.max(0, 18 - currentScore)}`;
+    document.getElementById('dailyScore').textContent   = `+${dailyPoints}`;
 
-    const needKeep = Math.max(0, 12 - currentScore);
-    const needUp = Math.max(0, 18 - currentScore);
-    document.getElementById('keepNeeded').textContent = `あと+${needKeep}`;
-    document.getElementById('upNeeded').textContent = `あと+${needUp}`;
-    document.getElementById('dailyScore').textContent = `+${dailyPoints}`;
-    document.getElementById('supportPoints').textContent = `${dailyPoints * 100}`;
+    // 本日の行ならば残り時間を表示
+    const timeEl = document.getElementById('dailyTimeLeft');
+    if (dayDateStr && dayDateStr === todayStr()) {
+        timeEl.dataset.isToday = 'true';
+        const { hours, minutes } = getTimeUntilMidnight();
+        timeEl.textContent = `あと ${hours}時間${minutes}分`;
+        timeEl.style.display = '';
+    } else {
+        timeEl.dataset.isToday = 'false';
+        timeEl.style.display = 'none';
+    }
+}
+
+function refreshDailyTimeLeft() {
+    const el = document.getElementById('dailyTimeLeft');
+    if (el && el.dataset.isToday === 'true') {
+        const { hours, minutes } = getTimeUntilMidnight();
+        el.textContent = `あと ${hours}時間${minutes}分`;
+    }
 }

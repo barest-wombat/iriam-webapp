@@ -46,6 +46,8 @@ out/
 
 ###
 
-*.png
 *.PNG
 *.webp
+# PWAアイコン以外のPNGを除外（icons/配下は除く）
+*.png
+!icons/*.png
