@@ -284,13 +284,25 @@ function buildPlanTable(startDateStr, planByDate) {
         pointTd.appendChild(wrap);
         tr.appendChild(pointTd);
 
-        // スキップセル
+        // スキップセル（チケットアイコントグル）
         const skipTd = document.createElement('td');
+        const label = document.createElement('label');
+        label.className = 'skip-ticket';
+        label.tabIndex = 0;
+
         const cb = document.createElement('input');
         cb.type = 'checkbox';
+        cb.className = 'skip-cb';
         if (savedEntry) cb.checked = savedEntry.skip;
         cb.addEventListener('change', saveState);
-        skipTd.appendChild(cb);
+
+        const icon = document.createElement('span');
+        icon.className = 'ticket-icon';
+        icon.textContent = '🎫';
+
+        label.appendChild(cb);
+        label.appendChild(icon);
+        skipTd.appendChild(label);
         tr.appendChild(skipTd);
 
         tbody.appendChild(tr);
@@ -311,8 +323,16 @@ function handleArrowKey(e) {
     const cell = focused.closest('td');
     if (!cell) return;
 
-    const isRange    = focused.type === 'range';
-    const isCheckbox = focused.type === 'checkbox';
+    const isRange  = focused.type === 'range';
+    const isTicket = focused.classList.contains('skip-ticket');
+
+    // Space で skip-ticket をトグル
+    if (isTicket && e.key === ' ') {
+        e.preventDefault();
+        const cb = focused.querySelector('.skip-cb');
+        if (cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); }
+        return;
+    }
 
     // 数字キー (0,1,2,4,6) でポイント直接入力
     if (isRange && ['0', '1', '2', '4', '6'].includes(e.key)) {
@@ -330,7 +350,6 @@ function handleArrowKey(e) {
     const isArrow = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
     const isEnter = e.key === 'Enter';
     if (!isArrow && !isEnter) return;
-    if (isEnter && isCheckbox) return;
 
     e.preventDefault();
 
@@ -349,7 +368,7 @@ function handleArrowKey(e) {
     if (e.key === 'ArrowRight') targetCol = Math.min(cols.length - 1, colIdx + 1);
 
     const targetCell = rows[targetRow].cells[targetCol];
-    const interactive = targetCell.querySelector('input[type="range"], input[type="checkbox"]');
+    const interactive = targetCell.querySelector('input[type="range"], label.skip-ticket');
     if (interactive) interactive.focus();
 }
 
@@ -445,14 +464,14 @@ function calculateResults() {
 
         const cells = [
             formatDateWithOffset(startDateStr, i),
-            `${s.score}`,
             s.rank,
+            `${s.score}`,
             `${s.skipPasses}`,
         ];
         cells.forEach((text, ci) => {
             const td = document.createElement('td');
             td.textContent = text;
-            if (ci === 2) td.className = `rank-cell ${getRankClass(s.rank)}`;
+            if (ci === 1) td.className = `rank-cell ${getRankClass(s.rank)}`;
             tr.appendChild(td);
         });
         resultTbody.appendChild(tr);

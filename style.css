@@ -244,11 +244,12 @@ td {
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 2px 0;
+    width: 100%;
 }
 
 .plan-slider-wrap input[type="range"] {
-    width: 72px;
+    flex: 1;
+    min-width: 0;
     cursor: pointer;
     accent-color: var(--focus-outline);
 }
@@ -261,11 +262,42 @@ td {
     color: var(--text);
 }
 
-#planTable td input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
+/* スキップチケットアイコン */
+.skip-ticket {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     cursor: pointer;
-    accent-color: var(--focus-outline);
+    padding: 2px;
+    border-radius: 4px;
+    outline: none;
+}
+
+.skip-ticket:focus-visible {
+    outline: 2px solid var(--focus-outline);
+    outline-offset: 1px;
+}
+
+.skip-ticket .skip-cb {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.ticket-icon {
+    font-size: 20px;
+    line-height: 1;
+    transition: filter 0.15s, opacity 0.15s;
+    user-select: none;
+    filter: grayscale(1);
+    opacity: 0.3;
+}
+
+.skip-ticket:has(.skip-cb:checked) .ticket-icon {
+    filter: none;
+    opacity: 1;
 }
 
 /* スクロール対象行のフラッシュアニメーション */
