@@ -263,6 +263,66 @@ function getPrevRank(rank) {
     return idx === -1 ? rank : RANK_VALUES[Math.max(idx - 1, 0)];
 }
 
+function applyDailyRankChange(state, plan, dailyPointsByDate) {
+    let { rank, score, daysLeft, skipPasses } = state;
+    const { date, dailyPoints, skipUsed } = plan;
+
+    if (skipUsed && skipPasses > 0) {
+        skipPasses -= 1;
+        daysLeft   += 1;
+    } else {
+        score += dailyPoints;
+        if (score >= 18) {
+            rank     = getNextRank(rank);
+            score    = 0;
+            daysLeft = 7;
+        } else {
+            daysLeft -= 1;
+            if (daysLeft <= 0) {
+                if (score < 12) rank = getPrevRank(rank);
+                score    = 0;
+                daysLeft = 7;
+            }
+        }
+    }
+
+    skipPasses = grantWeeklySkipPassIfNeeded(date, skipPasses, dailyPointsByDate);
+    return { rank, score, daysLeft, skipPasses };
+}
+
+function calculateRankStates(initialState, plans, startDateStr) {
+    const startIndex = plans.findIndex(plan => plan.date === startDateStr);
+    if (startIndex === -1) return null;
+
+    const dailyPointsByDate = Object.fromEntries(
+        plans.map(plan => [plan.date, plan.dailyPoints])
+    );
+    const dayStates = [{
+        ...initialState,
+        dailyPoints: undefined,
+        pre: false,
+        isCurrent: true,
+    }];
+    let current = { ...initialState };
+
+    plans.slice(0, startIndex).forEach(plan => {
+        dayStates.push({ date: plan.date, pre: true });
+    });
+
+    plans.slice(startIndex).forEach(plan => {
+        current = applyDailyRankChange(current, plan, dailyPointsByDate);
+        dayStates.push({
+            ...current,
+            dailyPoints: plan.dailyPoints,
+            date: plan.date,
+            pre: false,
+            isCurrent: false,
+        });
+    });
+
+    return dayStates;
+}
+
 // ===== 計算ボタンのグラデーション更新 =====
 function updateButtonGradient(rank) {
     document.getElementById('calculateButton').className = getRankClass(rank);
@@ -490,67 +550,28 @@ function addNumericKeyInput(sliderId, min, max) {
 // ===== シミュレーション計算 =====
 function calculateResults() {
     const startDateStr = document.getElementById('startDate').value;
-    let currentRank  = getRank();
-    let currentScore = getScore();
-    let daysLeft     = Math.max(1, Math.min(7, getDaysLeft()));
-    let skipPasses   = getSkipPasses();
-
     const resultTbody = document.getElementById('resultTable').querySelector('tbody');
     resultTbody.innerHTML = '';
 
-    const allRows     = Array.from(document.getElementById('planTable').querySelector('tbody').rows);
-    const startRowIdx = allRows.findIndex(r => r.dataset.date === startDateStr);
-    if (startRowIdx === -1) {
+    const allRows = Array.from(document.getElementById('planTable').querySelector('tbody').rows);
+    const plans = allRows.map(row => {
+        const slider = row.cells[1].querySelector('input[type="range"]');
+        return {
+            date: row.dataset.date,
+            dailyPoints: slider ? POINT_VALUES[parseInt(slider.value, 10)] : 0,
+            skipUsed: row.cells[2].querySelector('input[type="checkbox"]').checked,
+        };
+    });
+    const initialState = {
+        rank: getRank(),
+        score: getScore(),
+        daysLeft: Math.max(1, Math.min(7, getDaysLeft())),
+        skipPasses: getSkipPasses(),
+    };
+    const dayStates = calculateRankStates(initialState, plans, startDateStr);
+    if (!dayStates) {
         alert('開始日が表の範囲外です。表示範囲内（今日〜未来30日）で設定してください。');
         return;
-    }
-    const dailyPointsByDate = {};
-    allRows.forEach(row => {
-        const slider = row.cells[1].querySelector('input[type="range"]');
-        dailyPointsByDate[row.dataset.date] = slider ? POINT_VALUES[parseInt(slider.value, 10)] : 0;
-    });
-
-    const dayStates = [{
-        rank: currentRank,
-        score: currentScore,
-        daysLeft,
-        skipPasses,
-        pre: false,
-        isCurrent: true,
-    }];
-
-    // 開始日より前は空表示
-    for (let i = 0; i < startRowIdx; i++) {
-        dayStates.push({ date: allRows[i].dataset.date, pre: true });
-    }
-
-    // 開始日以降をシミュレーション
-    for (let i = startRowIdx; i < allRows.length; i++) {
-        const date        = allRows[i].dataset.date;
-        const dailyPoints = dailyPointsByDate[date] || 0;
-        const skipUsed    = allRows[i].cells[2].querySelector('input[type="checkbox"]').checked;
-
-        if (skipUsed && skipPasses > 0) {
-            skipPasses -= 1;
-            daysLeft   += 1;
-        } else {
-            currentScore += dailyPoints;
-            if (currentScore >= 18) {
-                currentRank  = getNextRank(currentRank);
-                currentScore = 0;
-                daysLeft     = 7;
-            } else {
-                daysLeft -= 1;
-                if (daysLeft <= 0) {
-                    if (currentScore < 12) currentRank = getPrevRank(currentRank);
-                    currentScore = 0;
-                    daysLeft     = 7;
-                }
-            }
-        }
-
-        skipPasses = grantWeeklySkipPassIfNeeded(date, skipPasses, dailyPointsByDate);
-        dayStates.push({ rank: currentRank, score: currentScore, daysLeft, dailyPoints, skipPasses, date, pre: false, isCurrent: false });
     }
 
     // テーブル行を構築
