@@ -127,14 +127,16 @@ h2 {
 }
 
 .theme-btn {
-    padding: 5px 9px;
+    padding: 6px 8px;
     border: none;
     background: transparent;
     color: var(--theme-btn-text);
-    font-size: 15px;
     line-height: 1;
     border-radius: 6px;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
