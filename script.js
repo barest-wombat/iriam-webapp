@@ -44,14 +44,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const rankIdx = Math.max(0, RANK_VALUES.indexOf(saved.rank || 'B2'));
         document.getElementById('currentRankSlider').value  = rankIdx;
         document.getElementById('currentScoreSlider').value = Math.min(18, Math.max(0, saved.score ?? 0));
-        document.getElementById('daysLeftSlider').value     = Math.min(7,  Math.max(1, saved.daysLeft ?? 7));
+        document.getElementById('daysLeftSlider').value     = Math.min(6,  Math.max(0, saved.daysLeft ?? 6));
         document.getElementById('skipPassesSlider').value   = Math.min(10, Math.max(0, saved.skipPasses ?? 0));
         startDateInput.value = normalizeStartDate(saved.startDate);
         buildCalendarTable(saved.planByDate || {});
     } else {
         document.getElementById('currentRankSlider').value  = RANK_VALUES.indexOf('B2');
         document.getElementById('currentScoreSlider').value = 0;
-        document.getElementById('daysLeftSlider').value     = 7;
+        document.getElementById('daysLeftSlider').value     = 6;
         document.getElementById('skipPassesSlider').value   = 0;
         buildCalendarTable({});
     }
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 数字キーによるスライダー直接入力
     addNumericKeyInput('currentScoreSlider', 0, 18);
-    addNumericKeyInput('daysLeftSlider',     1, 7);
+    addNumericKeyInput('daysLeftSlider',     0, 6);
     addNumericKeyInput('skipPassesSlider',   0, 10);
 
     // デイリー残り時間を1分ごとに更新
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ===== フォーム値ゲッター =====
 function getRank()       { return RANK_VALUES[parseInt(document.getElementById('currentRankSlider').value, 10)]; }
 function getScore()      { return parseInt(document.getElementById('currentScoreSlider').value, 10) || 0; }
-function getDaysLeft()   { return parseInt(document.getElementById('daysLeftSlider').value, 10) || 7; }
+function getDaysLeft()   { const v = parseInt(document.getElementById('daysLeftSlider').value, 10); return Number.isFinite(v) ? v : 6; }
 function getSkipPasses() { return parseInt(document.getElementById('skipPassesSlider').value, 10) || 0; }
 
 // ===== スライダー塗り更新 =====
@@ -269,19 +269,19 @@ function applyDailyRankChange(state, plan, dailyPointsByDate) {
 
     if (skipUsed && skipPasses > 0) {
         skipPasses -= 1;
-        daysLeft   += 1;
+        daysLeft   = Math.min(6, daysLeft + 1);
     } else {
         score += dailyPoints;
         if (score >= 18) {
             rank     = getNextRank(rank);
             score    = 0;
-            daysLeft = 7;
+            daysLeft = 6;
         } else {
             daysLeft -= 1;
-            if (daysLeft <= 0) {
+            if (daysLeft < 0) {
                 if (score < 12) rank = getPrevRank(rank);
                 score    = 0;
-                daysLeft = 7;
+                daysLeft = 6;
             }
         }
     }
@@ -565,7 +565,7 @@ function calculateResults() {
     const initialState = {
         rank: getRank(),
         score: getScore(),
-        daysLeft: Math.max(1, Math.min(7, getDaysLeft())),
+        daysLeft: Math.max(0, Math.min(6, getDaysLeft())),
         skipPasses: getSkipPasses(),
     };
     const dayStates = calculateRankStates(initialState, plans, startDateStr);
@@ -652,7 +652,7 @@ function updateRankCard(rank, currentScore, daysLeft, dailyPoints, dayDateStr, i
 
     const suffix     = currentScore >= 12 ? 'リセット' : 'ランクダウン';
     const daysInfoEl = document.getElementById('daysInfo');
-    if (daysLeft === 1 && isCurrent) {
+    if (daysLeft === 0 && isCurrent) {
         const { hours, minutes } = getTimeUntilMidnight();
         daysInfoEl.textContent       = `あと${hours}時間${minutes}分で${suffix}`;
         daysInfoEl.dataset.timeMode  = 'true';
