@@ -65,7 +65,7 @@ body {
 }
 
 .container {
-    max-width: 960px;
+    max-width: 1280px;
     margin: 0 auto;
     padding: 16px;
 }
@@ -619,4 +619,23 @@ input[type="range"]:focus-visible, #resultTable tr:focus-visible { outline: 2px 
     #resultTable .forecast-cell::before { display: none; }
     .guide-section { padding: 14px; }
     .form-row input[type="date"] { font-size: 16px; }
+}
+
+/* ===== デスクトップ: 計算結果と予測カードを2カラム表示 ===== */
+@media (min-width: 900px) {
+    .result-card-layout {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 16px;
+        align-items: start;
+    }
+    .result-card-layout .result-section { min-width: 0; }
+    .result-card-layout .card-section {
+        position: sticky;
+        top: 16px;
+        margin-bottom: 0;
+    }
+    .result-section .table-scroll {
+        max-height: 640px;
+    }
 }

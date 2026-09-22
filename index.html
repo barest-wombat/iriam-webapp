@@ -100,47 +100,49 @@
         <button id="calculateButton">計算</button>
         <p id="planError" role="alert"></p>
 
-        <section class="result-section">
-            <h2>計算結果</h2>
-            <p class="section-note">各日の集計後の状態と、入力した予定どおりに進んだ場合の次の変動です。行を選ぶとカードに表示します。</p>
-            <div class="table-scroll">
-                <table id="resultTable">
-                    <thead>
-                        <tr>
-                            <th>日</th>
-                            <th>ランク</th>
-                            <th>スコア</th>
-                            <th>残りパス</th>
-                            <th>次の変動まで</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </section>
+        <div class="result-card-layout">
+            <section class="result-section">
+                <h2>計算結果</h2>
+                <p class="section-note">各日の集計後の状態と、入力した予定どおりに進んだ場合の次の変動です。行を選ぶとカードに表示します。</p>
+                <div class="table-scroll">
+                    <table id="resultTable">
+                        <thead>
+                            <tr>
+                                <th>日</th>
+                                <th>ランク</th>
+                                <th>スコア</th>
+                                <th>残りパス</th>
+                                <th>次の変動まで</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
 
-        <section class="card-section">
-            <h2>予測カード</h2>
-            <div class="rank-card" id="rankCard">
-                <div class="rank-header" id="rankLabel">--</div>
-                <div class="score-info" id="scoreDisplay">-- / 18</div>
-                <div class="days-info" id="daysInfo">あと --日でランクダウン</div>
-                <div class="keep-up-container">
-                    <div class="keep">
-                        ランクキープ<br><span id="keepNeeded">あと +--</span>
+            <section class="card-section">
+                <h2>予測カード</h2>
+                <div class="rank-card" id="rankCard">
+                    <div class="rank-header" id="rankLabel">--</div>
+                    <div class="score-info" id="scoreDisplay">-- / 18</div>
+                    <div class="days-info" id="daysInfo">あと --日でランクダウン</div>
+                    <div class="keep-up-container">
+                        <div class="keep">
+                            ランクキープ<br><span id="keepNeeded">あと +--</span>
+                        </div>
+                        <div class="up">
+                            ランクアップ<br><span id="upNeeded">あと +--</span>
+                        </div>
                     </div>
-                    <div class="up">
-                        ランクアップ<br><span id="upNeeded">あと +--</span>
+                    <div class="daily-score">
+                        <div id="dailyScoreTitle" class="daily-score-title">デイリーランクスコア</div>
+                        <div id="dailyTimeLeft" class="daily-time-left" style="display:none"></div>
+                        <span id="dailyScore">+--</span>
+                        <div id="skipActive" class="skip-active" style="display:none">スキップパスを使用中</div>
                     </div>
                 </div>
-                <div class="daily-score">
-                    <div id="dailyScoreTitle" class="daily-score-title">デイリーランクスコア</div>
-                    <div id="dailyTimeLeft" class="daily-time-left" style="display:none"></div>
-                    <span id="dailyScore">+--</span>
-                    <div id="skipActive" class="skip-active" style="display:none">スキップパスを使用中</div>
-                </div>
-            </div>
-        </section>
+            </section>
+        </div>
         <section class="guide-section" aria-labelledby="guideTitle">
             <h2 id="guideTitle">スキップパスとランクのしくみ</h2>
             <p class="section-note">日本版 IRIAM の公式 FAQ をもとに整理しています（2026年9月22日確認）。このツールは非公式の予定シミュレーターです。</p>
