@@ -632,6 +632,11 @@ function calculateResults() {
                 td.dataset.label = ['日', 'ランク', 'スコア', '残りパス', '次の変動'][ci];
                 if (ci === 4) {
                     td.className = 'forecast-cell';
+                    if (s.skipUsed) {
+                        const note = document.createElement('small');
+                        note.textContent = 'スキパ使用';
+                        td.appendChild(note);
+                    }
                     if (s.event) {
                         const note = document.createElement('small');
                         note.textContent = `この日の集計：${s.event}`;
