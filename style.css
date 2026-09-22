@@ -580,3 +580,43 @@ td.rank-cell.rank-d { color: #546e7a; }
 
     .rank-card { max-width: 100%; }
 }
+
+/* ===== スキップ状態・予測・公式ガイド ===== */
+.section-note { color: var(--text-secondary); font-size: 14px; line-height: 1.7; margin: 0 0 12px; }
+#planError { color: var(--text); border-left: 4px solid #d33758; padding: 12px; background: var(--surface); }
+#planError:empty { display: none; }
+.plan-slider-wrap input:disabled { opacity: .35; cursor: not-allowed; }
+.skip-planned .plan-slider-label { font-size: 14px; color: var(--text-secondary); }
+.skip-ticket { min-height: 44px; min-width: 44px; }
+input[type="range"]:focus-visible, #resultTable tr:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: 2px; }
+#resultTable .forecast-cell { white-space: normal; font-weight: 600; }
+.forecast-cell small { display: block; font-weight: 400; margin-top: 4px; color: var(--text-secondary); font-size: 13px; }
+.guide-section { background: var(--surface); border-radius: 8px; padding: 18px; margin-bottom: 16px; }
+.guide-section details { border-top: 1px solid var(--border); padding: 14px 0; line-height: 1.8; }
+.guide-section summary { cursor: pointer; font-weight: 600; min-height: 32px; }
+.guide-section p { margin: 12px 0 0; }
+.guide-section a { color: var(--focus-outline); text-underline-offset: 3px; }
+.rank-rules { margin: 14px 0; }
+.rank-rules div { display: flex; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.rank-rules dt { font-weight: 700; flex: 0 0 70px; }
+.rank-rules dd { margin: 0; }
+
+@media (max-width: 560px) {
+    table { min-width: 0; }
+    #planTable th, #planTable td { padding: 6px 4px; }
+    #planTable th:first-child { width: 27%; }
+    #planTable th:last-child { width: 24%; }
+    .plan-slider-wrap input[type="range"] { width: 100%; height: 36px; }
+    .plan-slider-label { font-size: 14px; }
+    .result-section .table-scroll { max-height: 420px; }
+    #resultTable { display: block; }
+    #resultTable thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    #resultTable tbody { display: block; }
+    #resultTable tr { display: grid; grid-template-columns: 1.3fr .8fr .8fr .9fr; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    #resultTable td { border: 0; padding: 10px 4px; white-space: normal; font-size: 15px; display: flex; flex-direction: column; justify-content: center; }
+    #resultTable td::before { content: attr(data-label); display: block; font-size: 12px; font-weight: 400; color: var(--text-secondary); margin-bottom: 5px; }
+    #resultTable .forecast-cell { grid-column: 1 / -1; border-top: 1px solid var(--border); padding: 10px; text-align: left; }
+    #resultTable .forecast-cell::before { display: none; }
+    .guide-section { padding: 14px; }
+    .form-row input[type="date"] { font-size: 16px; }
+}
