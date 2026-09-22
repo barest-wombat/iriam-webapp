@@ -80,35 +80,19 @@
             </div>
         </section>
 
-        <section class="plan-section">
-            <h2>予定入力</h2>
-            <p class="section-note">スキップ日はスコア集計の対象外です。解除すると元の＋予定に戻ります。</p>
-            <div class="table-scroll">
-                <table id="planTable">
-                    <thead>
-                        <tr>
-                            <th>日</th>
-                            <th>予定(+)</th>
-                            <th>スキパ使用</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </section>
-
-        <button id="calculateButton">計算</button>
         <p id="planError" role="alert"></p>
 
         <div class="result-card-layout">
             <section class="result-section">
-                <h2>計算結果</h2>
-                <p class="section-note">各日の集計後の状態と、入力した予定どおりに進んだ場合の次の変動です。行を選ぶとカードに表示します。</p>
+                <h2>予定と計算結果</h2>
+                <p class="section-note">各日の予定（＋）とスキパ使用を入力すると、その日の集計後の状態と次の変動がすぐに更新されます。スキップ日はスコア集計の対象外です。行を選ぶとカードに表示します。</p>
                 <div class="table-scroll">
                     <table id="resultTable">
                         <thead>
                             <tr>
                                 <th>日</th>
+                                <th>予定(+)</th>
+                                <th>スキパ</th>
                                 <th>ランク</th>
                                 <th>スコア</th>
                                 <th>残りパス</th>

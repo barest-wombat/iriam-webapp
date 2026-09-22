@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // 初期表示は今日の行にスクロール
     setTimeout(() => scrollToDate(todayStr()), 0);
+    calculateResults();
 
     // 初期ラベルを更新
     updateRankLabel();
@@ -74,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateRankLabel();
         updateSliderFill(e.target);
         saveState();
+        calculateResults();
     });
 
     // スコアスライダー
@@ -81,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateScoreLabel();
         updateSliderFill(e.target);
         saveState();
+        calculateResults();
     });
 
     // 公式表示の「あと○日」スライダー
@@ -88,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDaysLeftLabel();
         updateSliderFill(e.target);
         saveState();
+        calculateResults();
     });
 
     // スキップパスラダー
@@ -95,13 +99,15 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSkipPassesLabel();
         updateSliderFill(e.target);
         saveState();
+        calculateResults();
     });
 
     // 開始日変更（その日付の行にスクロール）
     document.getElementById('startDate').addEventListener('change', e => {
         e.target.value = normalizeStartDate(e.target.value);
-        scrollToDate(e.target.value);
         saveState();
+        calculateResults();
+        scrollToDate(e.target.value);
     });
 
     // ストレージクリアボタン
@@ -111,9 +117,6 @@ document.addEventListener('DOMContentLoaded', () => {
             location.reload();
         }
     });
-
-    // 計算ボタン
-    document.getElementById('calculateButton').addEventListener('click', calculateResults);
 
     // 数字キーによるスライダー直接入力
     addNumericKeyInput('currentScoreSlider', 0, 18);
@@ -145,7 +148,6 @@ function updateSliderFill(slider) {
 function updateRankLabel() {
     const rank = getRank();
     document.getElementById('currentRankValue').textContent = rank;
-    updateButtonGradient(rank);
 }
 
 function updateScoreLabel() {
@@ -336,22 +338,13 @@ function calculateRankStates(initialState, plans, startDateStr) {
     return dayStates;
 }
 
-// ===== 計算ボタンのグラデーション更新 =====
-function updateButtonGradient(rank) {
-    document.getElementById('calculateButton').className = getRankClass(rank);
-}
-
 // ===== localStorage =====
 function saveState() {
-    const allRows = document.getElementById('planTable').querySelector('tbody').rows;
     const planByDate = {};
-    Array.from(allRows).forEach(row => {
-        const dateStr = row.dataset.date;
-        if (!dateStr) return;
-        const slider = row.cells[1].querySelector('input[type="range"]');
-        planByDate[dateStr] = {
-            point: slider ? POINT_VALUES[parseInt(slider.value, 10)] : 0,
-            skip:  row.cells[2].querySelector('input[type="checkbox"]').checked,
+    getDayRows().forEach(row => {
+        planByDate[row.dataset.date] = {
+            point: Number(row.querySelector('.plan-select').value),
+            skip:  row.querySelector('.skip-cb').checked,
         };
     });
     const state = {
@@ -365,6 +358,11 @@ function saveState() {
     localStorage.setItem('iriam-state', JSON.stringify(state));
 }
 
+// 予定入力を持つ日付行（「現在」行を除く）
+function getDayRows() {
+    return Array.from(document.querySelectorAll('#resultTable tbody tr[data-date]'));
+}
+
 function loadState() {
     try {
         const s = localStorage.getItem('iriam-state');
@@ -374,8 +372,18 @@ function loadState() {
 
 // ===== カレンダー形式の予定テーブル構築（今日＋未来30日、一度だけ生成） =====
 function buildCalendarTable(planByDate) {
-    const tbody = document.getElementById('planTable').querySelector('tbody');
+    const tbody = document.getElementById('resultTable').querySelector('tbody');
     tbody.innerHTML = '';
+
+    // 「現在」行（開始日の集計前の状態。予定入力なし）
+    const currentTr = document.createElement('tr');
+    currentTr.dataset.state = 'current';
+    currentTr.tabIndex = 0;
+    currentTr.appendChild(createCell('現在', '日', 'day-cell'));
+    currentTr.appendChild(createCell('—', '予定', 'plan-cell'));
+    currentTr.appendChild(createCell('', 'スキパ', 'skip-cell'));
+    appendResultCells(currentTr);
+    tbody.appendChild(currentTr);
 
     const today    = todayStr();
     const baseDate = new Date(today + 'T00:00:00');
@@ -386,50 +394,38 @@ function buildCalendarTable(planByDate) {
         d.setDate(d.getDate() + i);
         const dateStr    = toLocalDateStr(d);
         const savedEntry = planByDate[dateStr];
-        const isToday    = dateStr === today;
 
         const tr = document.createElement('tr');
         tr.dataset.date = dateStr;
-        if (isToday) tr.classList.add('today-row');
+        if (dateStr === today) tr.classList.add('today-row');
 
-        // 日付セル
-        const dayTd = document.createElement('td');
-        dayTd.textContent = formatDateStr(dateStr);
-        tr.appendChild(dayTd);
+        tr.appendChild(createCell(formatDateStr(dateStr), '日', 'day-cell'));
 
-        // ポイントスライダーセル
-        const pointTd = document.createElement('td');
-        const wrap = document.createElement('div');
-        wrap.className = 'plan-slider-wrap';
-
-        const pointSlider = document.createElement('input');
-        pointSlider.type  = 'range';
-        pointSlider.setAttribute('aria-label', `${formatDateStr(dateStr)}の予定スコア`);
-        pointSlider.min   = 0;
-        pointSlider.max   = POINT_VALUES.length - 1;
-        pointSlider.step  = 1;
-
-        const savedIdx = savedEntry ? Math.max(0, POINT_VALUES.indexOf(Number(savedEntry.point))) : 1;
-        pointSlider.value = savedIdx >= 0 ? savedIdx : 1;
-        updateSliderFill(pointSlider);
-
-        const pointLabel = document.createElement('span');
-        pointLabel.className = 'plan-slider-label';
-        pointLabel.textContent = `+${POINT_VALUES[pointSlider.value]}`;
-
-        pointSlider.addEventListener('input', () => {
-            pointLabel.textContent = `+${POINT_VALUES[parseInt(pointSlider.value, 10)]}`;
-            updateSliderFill(pointSlider);
-            saveState();
+        // 予定(+)セレクト
+        const pointTd = createCell('', '予定', 'plan-cell');
+        const select = document.createElement('select');
+        select.className = 'plan-select';
+        select.setAttribute('aria-label', `${formatDateStr(dateStr)}の予定スコア`);
+        POINT_VALUES.forEach(point => {
+            const option = document.createElement('option');
+            option.value = point;
+            option.textContent = `+${point}`;
+            select.appendChild(option);
         });
+        const savedPoint = savedEntry ? Number(savedEntry.point) : 1;
+        select.value = POINT_VALUES.includes(savedPoint) ? savedPoint : 1;
+        select.addEventListener('change', () => { saveState(); calculateResults(); });
 
-        wrap.appendChild(pointSlider);
-        wrap.appendChild(pointLabel);
-        pointTd.appendChild(wrap);
+        const skipNote = document.createElement('span');
+        skipNote.className = 'plan-skip-note';
+        skipNote.textContent = '対象外';
+
+        pointTd.appendChild(select);
+        pointTd.appendChild(skipNote);
         tr.appendChild(pointTd);
 
         // スキップセル（チケットアイコントグル）
-        const skipTd = document.createElement('td');
+        const skipTd = createCell('', 'スキパ', 'skip-cell');
         const label = document.createElement('label');
         label.className = 'skip-ticket';
         label.tabIndex = 0;
@@ -443,12 +439,13 @@ function buildCalendarTable(planByDate) {
         label.setAttribute('role', 'checkbox');
         label.setAttribute('aria-label', `${formatDateStr(dateStr)}のスキップパス`);
         const updateSkipInput = () => {
-            pointSlider.disabled = cb.checked;
-            pointLabel.textContent = cb.checked ? '対象外' : `+${POINT_VALUES[pointSlider.value]}`;
+            // スキップ日はスコア集計対象外。選んだ予定値は保持し、解除時に戻す
+            select.hidden = cb.checked;
+            skipNote.hidden = !cb.checked;
             label.setAttribute('aria-checked', String(cb.checked));
             tr.classList.toggle('skip-planned', cb.checked);
         };
-        cb.addEventListener('change', () => { updateSkipInput(); saveState(); });
+        cb.addEventListener('change', () => { updateSkipInput(); saveState(); calculateResults(); });
         updateSkipInput();
 
         const icon = document.createElement('span');
@@ -460,27 +457,49 @@ function buildCalendarTable(planByDate) {
         skipTd.appendChild(label);
         tr.appendChild(skipTd);
 
+        appendResultCells(tr);
         tbody.appendChild(tr);
     }
+
+    // 行のクリック・フォーカスで予測カードを切り替える
+    Array.from(tbody.rows).forEach(tr => {
+        tr.addEventListener('click', () => selectResultRow(tr));
+        tr.addEventListener('focusin', () => selectResultRow(tr));
+        tr.addEventListener('keydown', e => {
+            if (e.target === tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); selectResultRow(tr); }
+        });
+    });
 
     setupArrowKeyNav();
 }
 
+function createCell(text, label, className) {
+    const td = document.createElement('td');
+    td.textContent = text;
+    td.dataset.label = label;
+    td.className = className;
+    return td;
+}
+
+function appendResultCells(tr) {
+    tr.appendChild(createCell('--', 'ランク', 'rank-cell'));
+    tr.appendChild(createCell('--', 'スコア', 'score-cell'));
+    tr.appendChild(createCell('--', '残りパス', 'pass-cell'));
+    tr.appendChild(createCell('--', '次の変動', 'forecast-cell'));
+}
+
 // ===== 矢印キーナビゲーション =====
 function setupArrowKeyNav() {
-    const tbody = document.getElementById('planTable').querySelector('tbody');
+    const tbody = document.getElementById('resultTable').querySelector('tbody');
     tbody.removeEventListener('keydown', handleArrowKey);
     tbody.addEventListener('keydown', handleArrowKey);
 }
 
 function handleArrowKey(e) {
     const focused = document.activeElement;
-    const cell = focused.closest('td');
-    if (!cell) return;
-
-    const isRange  = focused.type === 'range';
-    if (isRange && focused.disabled) return;
+    const isSelect = focused.classList.contains('plan-select');
     const isTicket = focused.classList.contains('skip-ticket');
+    if (!isSelect && !isTicket) return;
 
     // Space で skip-ticket をトグル
     if (isTicket && e.key === ' ') {
@@ -491,17 +510,12 @@ function handleArrowKey(e) {
     }
 
     // 数字キー (0,1,2,4,6) でポイント直接入力
-    if (isRange && ['0', '1', '2', '4', '6'].includes(e.key)) {
-        const idx = POINT_VALUES.indexOf(parseInt(e.key, 10));
-        if (idx >= 0) {
-            focused.value = idx;
-            focused.dispatchEvent(new Event('input'));
-        }
+    if (isSelect && ['0', '1', '2', '4', '6'].includes(e.key)) {
+        e.preventDefault();
+        focused.value = e.key;
+        focused.dispatchEvent(new Event('change'));
         return;
     }
-
-    // range の左右キーはネイティブ動作（値変更）に任せる
-    if (isRange && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
 
     const isArrow = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
     const isEnter = e.key === 'Enter';
@@ -509,39 +523,35 @@ function handleArrowKey(e) {
 
     e.preventDefault();
 
-    const row  = cell.parentElement;
-    const rows = Array.from(row.parentElement.rows);
-    const cols = Array.from(row.cells);
-    const rowIdx = rows.indexOf(row);
-    const colIdx = cols.indexOf(cell);
-
+    const rows = getDayRows();
+    const rowIdx = rows.indexOf(focused.closest('tr'));
     let targetRow = rowIdx;
-    let targetCol = colIdx;
+    let targetIsTicket = isTicket;
 
     if (e.key === 'ArrowUp'   || (isEnter && e.shiftKey))  targetRow = Math.max(0, rowIdx - 1);
     if (e.key === 'ArrowDown' || (isEnter && !e.shiftKey)) targetRow = Math.min(rows.length - 1, rowIdx + 1);
-    if (e.key === 'ArrowLeft')  targetCol = Math.max(1, colIdx - 1);
-    if (e.key === 'ArrowRight') targetCol = Math.min(cols.length - 1, colIdx + 1);
+    if (e.key === 'ArrowLeft')  targetIsTicket = false;
+    if (e.key === 'ArrowRight') targetIsTicket = true;
 
-    const targetCell = rows[targetRow].cells[targetCol];
-    const interactive = targetCell.querySelector('input[type="range"]:not(:disabled), label.skip-ticket') || rows[targetRow].querySelector('label.skip-ticket');
-    if (interactive) interactive.focus();
+    const row = rows[targetRow];
+    const select = row.querySelector('.plan-select');
+    const target = (targetIsTicket || select.hidden) ? row.querySelector('.skip-ticket') : select;
+    target.focus();
 }
 
 // ===== 日付指定スクロールアニメーション（表内のみ、ページはスクロールしない） =====
 function scrollToDate(dateStr) {
-    const container = document.querySelector('.plan-section .table-scroll');
-    const tbody = document.getElementById('planTable').querySelector('tbody');
-    const row = Array.from(tbody.rows).find(r => r.dataset.date === dateStr);
+    const container = document.querySelector('.result-section .table-scroll');
+    const row = getDayRows().find(r => r.dataset.date === dateStr);
     if (!row || !container) return;
 
     // コンテナ内の相対位置だけスクロール（ページ全体には影響しない）
     const containerRect = container.getBoundingClientRect();
     const rowRect = row.getBoundingClientRect();
-    const theadHeight = document.querySelector('#planTable thead').offsetHeight;
+    const theadHeight = document.querySelector('#resultTable thead').offsetHeight;
     container.scrollBy({ top: rowRect.top - containerRect.top - theadHeight, behavior: 'smooth' });
 
-    Array.from(tbody.rows).forEach(r => r.classList.remove('scroll-target'));
+    getDayRows().forEach(r => r.classList.remove('scroll-target'));
     row.classList.add('scroll-target');
     row.addEventListener('animationend', () => row.classList.remove('scroll-target'), { once: true });
 }
@@ -576,125 +586,89 @@ function addNumericKeyInput(sliderId, min, max) {
 // ===== シミュレーション計算 =====
 function calculateResults() {
     const startDateStr = document.getElementById('startDate').value;
-    const resultTbody = document.getElementById('resultTable').querySelector('tbody');
-    resultTbody.innerHTML = '';
+    const tbody = document.getElementById('resultTable').querySelector('tbody');
     const errorEl = document.getElementById('planError');
     errorEl.textContent = '';
-    document.querySelector('.card-section').hidden = true;
 
-    const allRows = Array.from(document.getElementById('planTable').querySelector('tbody').rows);
-    const plans = allRows.map(row => {
-        const slider = row.cells[1].querySelector('input[type="range"]');
-        return {
-            date: row.dataset.date,
-            dailyPoints: slider ? POINT_VALUES[parseInt(slider.value, 10)] : 0,
-            skipUsed: row.cells[2].querySelector('input[type="checkbox"]').checked,
-        };
-    });
+    const dayRows = getDayRows();
+    const plans = dayRows.map(row => ({
+        date: row.dataset.date,
+        dailyPoints: Number(row.querySelector('.plan-select').value),
+        skipUsed: row.querySelector('.skip-cb').checked,
+    }));
     const initialState = {
         rank: getRank(),
         score: getScore(),
         daysLeft: Math.max(0, Math.min(16, getDaysLeft())),
         skipPasses: getSkipPasses(),
     };
-    let dayStates;
+    let dayStates = null;
     try {
         dayStates = calculateRankStates(initialState, plans, startDateStr);
+        if (!dayStates) errorEl.textContent = '開始日が表の範囲外です。表示範囲内（今日〜未来30日）で設定してください。';
     } catch (error) {
         errorEl.textContent = error.message;
-        return;
     }
+
+    // 計算できない場合は結果欄を空にし、カードを隠す
+    const rows = Array.from(tbody.rows);
     if (!dayStates) {
-        alert('開始日が表の範囲外です。表示範囲内（今日〜未来30日）で設定してください。');
+        rows.forEach(tr => {
+            delete tr.dayState;
+            fillResultCells(tr, null);
+        });
+        document.querySelector('.card-section').hidden = true;
         return;
     }
-
     document.querySelector('.card-section').hidden = false;
-    // テーブル行を構築
-    dayStates.forEach(s => {
-        const tr = document.createElement('tr');
-        if (s.date) tr.dataset.date = s.date;
-        if (s.isCurrent) tr.dataset.state = 'current';
-        if (s.date === todayStr()) tr.classList.add('today-row');
 
-        if (s.pre) {
-            [formatDateStr(s.date), '--', '--', '--', '--'].forEach(text => {
-                const td = document.createElement('td');
-                td.textContent = text;
-                tr.appendChild(td);
-            });
-        } else {
-            tr.style.cursor = 'pointer';
-            const dateLabel = s.isCurrent ? '現在' : formatDateStr(s.date);
-            [dateLabel, s.rank, `${s.score}`, `${s.skipPasses}`, s.forecast].forEach((text, ci) => {
-                const td = document.createElement('td');
-                td.textContent = text;
-                td.dataset.label = ['日', 'ランク', 'スコア', '残りパス', '次の変動'][ci];
-                if (ci === 4) {
-                    td.className = 'forecast-cell';
-                    if (s.skipUsed) {
-                        const note = document.createElement('small');
-                        note.textContent = 'スキパ使用';
-                        td.appendChild(note);
-                    }
-                    if (s.event) {
-                        const note = document.createElement('small');
-                        note.textContent = `この日の集計：${s.event}`;
-                        td.appendChild(note);
-                    }
-                }
-                if (ci === 1) td.className = `rank-cell ${getRankClass(s.rank)}`;
-                tr.appendChild(td);
-            });
-        }
-        resultTbody.appendChild(tr);
+    // dayStates は「現在」＋日付行と同じ順序
+    rows.forEach((tr, i) => {
+        const state = dayStates[i];
+        tr.dayState = state.pre ? null : state;
+        fillResultCells(tr, tr.dayState);
     });
 
-    // 行クリックでカード更新（シミュレーション行のみ）
-    Array.from(resultTbody.rows).forEach((tr, i) => {
-        const s = dayStates[i];
-        if (s.pre) return;
-        tr.tabIndex = 0;
-        tr.addEventListener('keydown', e => {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tr.click(); }
-        });
-        tr.addEventListener('click', () => {
-            Array.from(resultTbody.rows).forEach(r => r.classList.remove('selected-row'));
-            tr.classList.add('selected-row');
-            updateRankCard(s.rank, s.score, s.daysLeft, s.dailyPoints, s.date, s.isCurrent, s.skipUsed, s.forecast);
-        });
-    });
+    // 選択中の行を維持し、計算できない行なら「現在」に戻す
+    const selected = rows.find(tr => tr.classList.contains('selected-row') && tr.dayState);
+    selectResultRow(selected || rows[0]);
+}
 
-    // デフォルトは現在の状態を表示
-    const simStates = dayStates.filter(s => !s.pre);
-    if (simStates.length > 0) {
-        const first = simStates[0];
-        updateRankCard(first.rank, first.score, first.daysLeft, first.dailyPoints, first.date, first.isCurrent, first.skipUsed, first.forecast);
-        const currentRow = Array.from(resultTbody.rows).find(r => r.dataset.state === 'current');
-        if (currentRow) currentRow.classList.add('selected-row');
+function fillResultCells(tr, state) {
+    const [rankTd, scoreTd, passTd, forecastTd] = Array.from(tr.cells).slice(3);
+    tr.classList.toggle('pre-row', !state);
+    if (!state) {
+        [rankTd, scoreTd, passTd, forecastTd].forEach(td => { td.textContent = '--'; });
+        rankTd.className = 'rank-cell';
+        tr.classList.remove('selected-row');
+        return;
     }
-
-    // 計算後は先頭の現在行へ戻す
-    setTimeout(scrollResultToCurrent, 0);
+    rankTd.textContent = state.rank;
+    rankTd.className = `rank-cell ${getRankClass(state.rank)}`;
+    scoreTd.textContent = `${state.score}`;
+    passTd.textContent = `${state.skipPasses}`;
+    forecastTd.textContent = state.forecast;
+    if (state.skipUsed) {
+        const note = document.createElement('small');
+        note.textContent = 'スキパ使用（締切を1日延長）';
+        forecastTd.appendChild(note);
+    }
+    if (state.event) {
+        const note = document.createElement('small');
+        note.textContent = `この日の集計：${state.event}`;
+        forecastTd.appendChild(note);
+    }
 }
 
-function scrollResultToCurrent() {
-    const container = document.querySelector('.result-section .table-scroll');
-    if (!container) return;
-    container.scrollTo({ top: 0, behavior: 'smooth' });
+function selectResultRow(tr) {
+    const s = tr.dayState;
+    if (!s) return;
+    Array.from(tr.parentElement.rows).forEach(r => r.classList.remove('selected-row'));
+    tr.classList.add('selected-row');
+    updateRankCard(s.rank, s.score, s.daysLeft, s.dailyPoints, s.date, s.isCurrent, s.skipUsed, s.forecast);
 }
 
-// ===== 計算結果表の日付指定スクロール =====
-function scrollResultToDate(dateStr) {
-    const container = document.querySelector('.result-section .table-scroll');
-    const tbody = document.getElementById('resultTable').querySelector('tbody');
-    const row = Array.from(tbody.rows).find(r => r.dataset.date === dateStr);
-    if (!row || !container) return;
-    const containerRect = container.getBoundingClientRect();
-    const rowRect = row.getBoundingClientRect();
-    const theadHeight = document.querySelector('#resultTable thead').offsetHeight;
-    container.scrollBy({ top: rowRect.top - containerRect.top - theadHeight, behavior: 'smooth' });
-}
+
 
 // ===== ランクカード更新 =====
 function updateRankCard(rank, currentScore, daysLeft, dailyPoints, dayDateStr, isCurrent = false, skipUsed = false, forecast = '') {
