@@ -51,28 +51,28 @@
                 <input type="date" id="startDate">
             </div>
             <div class="form-row">
-                <label>現在ランク:</label>
+                <label for="currentRankSlider">現在ランク:</label>
                 <div class="slider-container">
                     <input type="range" id="currentRankSlider" min="0" max="14" step="1" value="7">
                     <span class="slider-value" id="currentRankValue">B2</span>
                 </div>
             </div>
             <div class="form-row">
-                <label>現在ランクスコア:</label>
+                <label for="currentScoreSlider">現在ランクスコア:</label>
                 <div class="slider-container">
                     <input type="range" id="currentScoreSlider" min="0" max="18" step="1" value="0">
                     <span class="slider-value" id="currentScoreValue">0</span>
                 </div>
             </div>
             <div class="form-row">
-                <label>あと○日:</label>
+                <label for="daysLeftSlider">あと○日:</label>
                 <div class="slider-container">
                     <input type="range" id="daysLeftSlider" min="0" max="16" step="1" value="6">
                     <span class="slider-value" id="daysLeftValue">6</span>
                 </div>
             </div>
             <div class="form-row">
-                <label>スキップパス枚数:</label>
+                <label for="skipPassesSlider">スキップパス枚数:</label>
                 <div class="slider-container">
                     <input type="range" id="skipPassesSlider" min="0" max="10" step="1" value="0">
                     <span class="slider-value" id="skipPassesValue">0</span>
@@ -82,6 +82,7 @@
 
         <section class="plan-section">
             <h2>予定入力</h2>
+            <p class="section-note">スキップ日はスコア集計の対象外です。解除すると元の＋予定に戻ります。</p>
             <div class="table-scroll">
                 <table id="planTable">
                     <thead>
@@ -97,17 +98,20 @@
         </section>
 
         <button id="calculateButton">計算</button>
+        <p id="planError" role="alert"></p>
 
         <section class="result-section">
             <h2>計算結果</h2>
+            <p class="section-note">各日の集計後の状態と、入力した予定どおりに進んだ場合の次の変動です。行を選ぶとカードに表示します。</p>
             <div class="table-scroll">
                 <table id="resultTable">
                     <thead>
                         <tr>
                             <th>日</th>
                             <th>ランク</th>
-                            <th>ランクスコア</th>
-                            <th>残りスキパ</th>
+                            <th>スコア</th>
+                            <th>残りパス</th>
+                            <th>次の変動まで</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -136,6 +140,35 @@
                     <div id="skipActive" class="skip-active" style="display:none">スキップパスを使用中</div>
                 </div>
             </div>
+        </section>
+        <section class="guide-section" aria-labelledby="guideTitle">
+            <h2 id="guideTitle">スキップパスとランクのしくみ</h2>
+            <p class="section-note">日本版 IRIAM の公式 FAQ をもとに整理しています（2026年9月22日確認）。このツールは非公式の予定シミュレーターです。</p>
+            <details open>
+                <summary>スキップすると、何が変わる？</summary>
+                <p>使用日はデイリーランクスコアを加算せず、集計の締切が1日延びます。このため＋の入力を無効にしています。配信自体は可能で、応援ポイント・応援ダイヤは集計されますが、時間ダイヤとあんしんランクスコアは対象外です。</p>
+                <p>IRIAM では当日分（23:00まで）または翌日分を指定できます。使用後のキャンセル・変更はできません。このツールでのオン・オフは予定の編集であり、IRIAM 内のパスを操作しません。</p>
+                <p>前週に1日以上配信すると、月曜0時頃に1枚付与されます。所持上限は10枚です。配信しなかった日の「まいにち配信」「連続配信」を守る機能ではありません。</p>
+                <p><a href="https://support.iriam.com/hc/ja/articles/900005400066">公式：スキップパスについて</a> · <a href="https://support.iriam.com/hc/ja/articles/900007125363">使用後のキャンセルについて</a></p>
+            </details>
+            <details>
+                <summary>ランクアップ・キープ・ダウンの条件</summary>
+                <dl class="rank-rules">
+                    <div><dt>18以上</dt><dd>集計期間の途中でも、スコア確定時にランクアップ。</dd></div>
+                    <div><dt>12〜17</dt><dd>7日分の集計を終えるとランクキープ。</dd></div>
+                    <div><dt>0〜11</dt><dd>7日分の集計を終えるとランクダウン。</dd></div>
+                </dl>
+                <p>いずれの判定でも累計スコアはリセットされ、次の集計期間が始まります。スキップ日は7日分に含めません。このツールでは下限 D・上限 S3 でランクを据え置く判定を「リセット」と表示します。</p>
+                <p>デイリーランクスコアは毎日24時に集計され、確定表示の目安は15〜20分後です。日中の表示やこのツールの予定値は、実際の確定値を保証しません。</p>
+                <p><a href="https://support.iriam.com/hc/ja/articles/900004645046">公式：コミュニティランク</a> · <a href="https://support.iriam.com/hc/ja/articles/900004645266">変動するタイミング</a> · <a href="https://support.iriam.com/hc/ja/articles/900005592143">デイリーランクスコア</a></p>
+            </details>
+            <details>
+                <summary>「あと○日」と計算の前提</summary>
+                <p>開始日の入力には、その日のスコア集計前の状態を使います。「あと○日」は IRIAM の表示値を入力してください。0日はその日の集計が期限、6日は当日を含めて7日分です。開始日のパス枚数には、その日に受け取った分も含めてください。</p>
+                <p>結果の「次の変動まで」は、各行の日付から次のランクアップ・ダウン・リセットまでの暦日数です。「現在」行だけは開始日の集計前を表します。判定が起きた行には、その日の判定と次回までの日数を表示します。30日先までに判定がなければ「予定内に変動なし」と表示します。</p>
+                <p>スキップ日の集計後は、締切の1日延長と1日の経過が相殺され、残りの集計日数は減りません。予定は端末の日付を基準にするため、日本時間での利用を想定しています。</p>
+                <p>週次付与は、表示範囲内の前週に「スキップなし・＋1以上」の予定がある場合に推定します。開始日前の配信実績やスキップ日に配信した事実は取得できません。公式の付与条件はスコアではなく配信の有無なので、実際の所持枚数と異なる場合は開始日の入力を更新してください。</p>
+            </details>
         </section>
     </div>
 

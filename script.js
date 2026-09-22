@@ -266,62 +266,73 @@ function getPrevRank(rank) {
 function applyDailyRankChange(state, plan, dailyPointsByDate) {
     let { rank, score, daysLeft, skipPasses } = state;
     const { date, dailyPoints, skipUsed } = plan;
-    let skipApplied = false;
+    let event = null;
 
-    if (skipUsed && skipPasses > 0) {
+    // 月曜の配布は使用より先。開始日の枚数には受取済み分を入力する。
+    if (!plan.isStartDate) {
+        skipPasses = grantWeeklySkipPassIfNeeded(date, skipPasses, dailyPointsByDate);
+    }
+    if (skipUsed) {
+        if (skipPasses <= 0) throw new Error(`${formatDateStr(date)}のスキップパスが不足しています。予定か開始日の枚数を見直してください。`);
         skipPasses -= 1;
-        daysLeft   += 1;
-        skipApplied = true;
+        // 集計後の状態なので、延長した1日と経過した1日が相殺される。
     } else {
         score += dailyPoints;
         if (score >= 18) {
-            rank     = getNextRank(rank);
-            score    = 0;
+            const nextRank = getNextRank(rank);
+            event = nextRank === rank ? 'リセット' : 'ランクアップ';
+            rank = nextRank;
+            score = 0;
             daysLeft = 6;
         } else {
             daysLeft -= 1;
             if (daysLeft < 0) {
-                if (score < 12) rank = getPrevRank(rank);
-                score    = 0;
+                const nextRank = score < 12 ? getPrevRank(rank) : rank;
+                event = nextRank === rank ? 'リセット' : 'ランクダウン';
+                rank = nextRank;
+                score = 0;
                 daysLeft = 6;
             }
         }
     }
-
-    skipPasses = grantWeeklySkipPassIfNeeded(date, skipPasses, dailyPointsByDate);
-    return { rank, score, daysLeft, skipPasses, skipUsed: skipApplied };
+    return { rank, score, daysLeft, skipPasses, skipUsed: Boolean(skipUsed), event };
 }
 
 function calculateRankStates(initialState, plans, startDateStr) {
     const startIndex = plans.findIndex(plan => plan.date === startDateStr);
     if (startIndex === -1) return null;
-
     const dailyPointsByDate = Object.fromEntries(
-        plans.map(plan => [plan.date, plan.dailyPoints])
+        plans.map(plan => [plan.date, plan.skipUsed ? 0 : plan.dailyPoints])
     );
-    const dayStates = [{
-        ...initialState,
-        dailyPoints: undefined,
-        pre: false,
-        isCurrent: true,
-    }];
+    const dayStates = [{ ...initialState, dailyPoints: undefined, pre: false, isCurrent: true }];
     let current = { ...initialState };
-
     plans.slice(0, startIndex).forEach(plan => {
         dayStates.push({ date: plan.date, pre: true });
     });
-
     plans.slice(startIndex).forEach(plan => {
-        current = applyDailyRankChange(current, plan, dailyPointsByDate);
+        current = applyDailyRankChange(current, { ...plan, isStartDate: plan.date === startDateStr }, dailyPointsByDate);
         dayStates.push({
             ...current,
-            dailyPoints: plan.dailyPoints,
+            dailyPoints: plan.skipUsed ? 0 : plan.dailyPoints,
             date: plan.date,
             pre: false,
             isCurrent: false,
         });
     });
-
+    // 入力された予定の範囲内で、各行より後に起きる最初の変動を探す。
+    dayStates.forEach((state, index) => {
+        if (state.pre) return;
+        const next = dayStates.slice(index + 1).find(candidate => candidate.event);
+        if (!next) {
+            state.forecast = '予定内に変動なし';
+            return;
+        }
+        const baseDate = state.isCurrent ? startDateStr : state.date;
+        const days = Math.round((Date.parse(next.date) - Date.parse(baseDate)) / 86400000);
+        state.forecast = days === 0
+            ? `本日の集計で${next.event}`
+            : `あと${days}日で${next.event}`;
+    });
     return dayStates;
 }
 
@@ -393,6 +404,7 @@ function buildCalendarTable(planByDate) {
 
         const pointSlider = document.createElement('input');
         pointSlider.type  = 'range';
+        pointSlider.setAttribute('aria-label', `${formatDateStr(dateStr)}の予定スコア`);
         pointSlider.min   = 0;
         pointSlider.max   = POINT_VALUES.length - 1;
         pointSlider.step  = 1;
@@ -426,7 +438,18 @@ function buildCalendarTable(planByDate) {
         cb.type = 'checkbox';
         cb.className = 'skip-cb';
         if (savedEntry) cb.checked = savedEntry.skip;
-        cb.addEventListener('change', saveState);
+        cb.tabIndex = -1;
+        cb.setAttribute('aria-hidden', 'true');
+        label.setAttribute('role', 'checkbox');
+        label.setAttribute('aria-label', `${formatDateStr(dateStr)}のスキップパス`);
+        const updateSkipInput = () => {
+            pointSlider.disabled = cb.checked;
+            pointLabel.textContent = cb.checked ? '対象外' : `+${POINT_VALUES[pointSlider.value]}`;
+            label.setAttribute('aria-checked', String(cb.checked));
+            tr.classList.toggle('skip-planned', cb.checked);
+        };
+        cb.addEventListener('change', () => { updateSkipInput(); saveState(); });
+        updateSkipInput();
 
         const icon = document.createElement('span');
         icon.className = 'ticket-icon';
@@ -456,6 +479,7 @@ function handleArrowKey(e) {
     if (!cell) return;
 
     const isRange  = focused.type === 'range';
+    if (isRange && focused.disabled) return;
     const isTicket = focused.classList.contains('skip-ticket');
 
     // Space で skip-ticket をトグル
@@ -500,7 +524,7 @@ function handleArrowKey(e) {
     if (e.key === 'ArrowRight') targetCol = Math.min(cols.length - 1, colIdx + 1);
 
     const targetCell = rows[targetRow].cells[targetCol];
-    const interactive = targetCell.querySelector('input[type="range"], label.skip-ticket');
+    const interactive = targetCell.querySelector('input[type="range"]:not(:disabled), label.skip-ticket') || rows[targetRow].querySelector('label.skip-ticket');
     if (interactive) interactive.focus();
 }
 
@@ -554,6 +578,9 @@ function calculateResults() {
     const startDateStr = document.getElementById('startDate').value;
     const resultTbody = document.getElementById('resultTable').querySelector('tbody');
     resultTbody.innerHTML = '';
+    const errorEl = document.getElementById('planError');
+    errorEl.textContent = '';
+    document.querySelector('.card-section').hidden = true;
 
     const allRows = Array.from(document.getElementById('planTable').querySelector('tbody').rows);
     const plans = allRows.map(row => {
@@ -570,12 +597,19 @@ function calculateResults() {
         daysLeft: Math.max(0, Math.min(16, getDaysLeft())),
         skipPasses: getSkipPasses(),
     };
-    const dayStates = calculateRankStates(initialState, plans, startDateStr);
+    let dayStates;
+    try {
+        dayStates = calculateRankStates(initialState, plans, startDateStr);
+    } catch (error) {
+        errorEl.textContent = error.message;
+        return;
+    }
     if (!dayStates) {
         alert('開始日が表の範囲外です。表示範囲内（今日〜未来30日）で設定してください。');
         return;
     }
 
+    document.querySelector('.card-section').hidden = false;
     // テーブル行を構築
     dayStates.forEach(s => {
         const tr = document.createElement('tr');
@@ -584,7 +618,7 @@ function calculateResults() {
         if (s.date === todayStr()) tr.classList.add('today-row');
 
         if (s.pre) {
-            [formatDateStr(s.date), '--', '--', '--'].forEach(text => {
+            [formatDateStr(s.date), '--', '--', '--', '--'].forEach(text => {
                 const td = document.createElement('td');
                 td.textContent = text;
                 tr.appendChild(td);
@@ -592,9 +626,18 @@ function calculateResults() {
         } else {
             tr.style.cursor = 'pointer';
             const dateLabel = s.isCurrent ? '現在' : formatDateStr(s.date);
-            [dateLabel, s.rank, `${s.score}`, `${s.skipPasses}`].forEach((text, ci) => {
+            [dateLabel, s.rank, `${s.score}`, `${s.skipPasses}`, s.forecast].forEach((text, ci) => {
                 const td = document.createElement('td');
                 td.textContent = text;
+                td.dataset.label = ['日', 'ランク', 'スコア', '残りパス', '次の変動'][ci];
+                if (ci === 4) {
+                    td.className = 'forecast-cell';
+                    if (s.event) {
+                        const note = document.createElement('small');
+                        note.textContent = `この日の集計：${s.event}`;
+                        td.appendChild(note);
+                    }
+                }
                 if (ci === 1) td.className = `rank-cell ${getRankClass(s.rank)}`;
                 tr.appendChild(td);
             });
@@ -606,10 +649,14 @@ function calculateResults() {
     Array.from(resultTbody.rows).forEach((tr, i) => {
         const s = dayStates[i];
         if (s.pre) return;
+        tr.tabIndex = 0;
+        tr.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tr.click(); }
+        });
         tr.addEventListener('click', () => {
             Array.from(resultTbody.rows).forEach(r => r.classList.remove('selected-row'));
             tr.classList.add('selected-row');
-            updateRankCard(s.rank, s.score, s.daysLeft, s.dailyPoints, s.date, s.isCurrent, s.skipUsed);
+            updateRankCard(s.rank, s.score, s.daysLeft, s.dailyPoints, s.date, s.isCurrent, s.skipUsed, s.forecast);
         });
     });
 
@@ -617,7 +664,7 @@ function calculateResults() {
     const simStates = dayStates.filter(s => !s.pre);
     if (simStates.length > 0) {
         const first = simStates[0];
-        updateRankCard(first.rank, first.score, first.daysLeft, first.dailyPoints, first.date, first.isCurrent, first.skipUsed);
+        updateRankCard(first.rank, first.score, first.daysLeft, first.dailyPoints, first.date, first.isCurrent, first.skipUsed, first.forecast);
         const currentRow = Array.from(resultTbody.rows).find(r => r.dataset.state === 'current');
         if (currentRow) currentRow.classList.add('selected-row');
     }
@@ -645,24 +692,16 @@ function scrollResultToDate(dateStr) {
 }
 
 // ===== ランクカード更新 =====
-function updateRankCard(rank, currentScore, daysLeft, dailyPoints, dayDateStr, isCurrent = false, skipUsed = false) {
+function updateRankCard(rank, currentScore, daysLeft, dailyPoints, dayDateStr, isCurrent = false, skipUsed = false, forecast = '') {
     document.querySelector('.card-section h2').textContent =
         isCurrent ? '現在カード' : '予測カード';
     document.getElementById('rankCard').className    = `rank-card ${getRankClass(rank)}`;
     document.getElementById('rankLabel').textContent = rank;
     document.getElementById('scoreDisplay').textContent = `${currentScore} / 18`;
 
-    const suffix     = currentScore >= 12 ? 'リセット' : 'ランクダウン';
     const daysInfoEl = document.getElementById('daysInfo');
-    if (daysLeft === 0 && (isCurrent || dayDateStr === todayStr())) {
-        const { hours, minutes } = getTimeUntilMidnight();
-        daysInfoEl.textContent       = `あと ${hours}時間${minutes}分で${suffix}`;
-        daysInfoEl.dataset.timeMode  = 'true';
-        daysInfoEl.dataset.suffix    = suffix;
-    } else {
-        daysInfoEl.textContent      = `あと ${daysLeft}日で${suffix}`;
-        daysInfoEl.dataset.timeMode = 'false';
-    }
+    daysInfoEl.textContent = forecast;
+    daysInfoEl.dataset.timeMode = 'false';
 
     document.getElementById('keepNeeded').textContent = `あと +${Math.max(0, 12 - currentScore)}`;
     document.getElementById('upNeeded').textContent   = `あと +${Math.max(0, 18 - currentScore)}`;
