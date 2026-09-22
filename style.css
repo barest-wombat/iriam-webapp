@@ -419,7 +419,7 @@ td {
 #resultTable tbody tr.pre-row { cursor: default; }
 #resultTable tbody tr.pre-row td.rank-cell,
 #resultTable tbody tr.pre-row td.score-cell,
-#resultTable tbody tr.pre-row td.pass-cell,
+#resultTable tbody tr.pre-row .pass-count,
 #resultTable tbody tr.pre-row td.forecast-cell { color: var(--text-secondary); }
 
 /* ランクセル着色 */
@@ -550,6 +550,9 @@ td.rank-cell.rank-d { color: #546e7a; }
 #planError { color: var(--text); border-left: 4px solid #d33758; padding: 12px; background: var(--surface); }
 #planError:empty { display: none; }
 .skip-ticket { min-height: 44px; min-width: 44px; }
+.skip-wrap { display: flex; align-items: center; justify-content: center; gap: 2px; }
+.pass-count { font-size: 13px; font-weight: 600; min-width: 2.5em; text-align: left; }
+tr[data-state="current"] .pass-count { text-align: center; }
 input[type="range"]:focus-visible, #resultTable tr:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: 2px; }
 #resultTable .forecast-cell { white-space: normal; font-weight: 600; }
 .forecast-cell small { display: block; font-weight: 400; margin-top: 4px; color: var(--text-secondary); font-size: 13px; }
@@ -569,15 +572,17 @@ input[type="range"]:focus-visible, #resultTable tr:focus-visible { outline: 2px 
     #resultTable { display: block; }
     #resultTable thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
     #resultTable tbody { display: block; }
-    #resultTable tr { display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    #resultTable tr { display: grid; grid-template-columns: repeat(6, 1fr); margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
     #resultTable td { border: 0; padding: 10px 4px; white-space: normal; font-size: 15px; display: flex; flex-direction: column; justify-content: center; }
     #resultTable td::before { content: attr(data-label); display: block; font-size: 12px; font-weight: 400; color: var(--text-secondary); margin-bottom: 5px; }
     #resultTable .forecast-cell { grid-column: 1 / -1; border-top: 1px solid var(--border); padding: 10px; text-align: left; }
     #resultTable .forecast-cell::before { display: none; }
-    /* 1段目: 日・予定・スキパ（ラベルなしで詰める） 2段目: 結果 3段目: 次の変動 */
+    /* 1段目: 日・予定・スキパ(残)（ラベルなしで詰める） 2段目: ランク・スコア 3段目: 次の変動 */
+    #resultTable .day-cell, #resultTable .plan-cell, #resultTable .skip-cell { grid-column: span 2; }
+    #resultTable .rank-cell, #resultTable .score-cell { grid-column: span 3; }
     #resultTable .day-cell, #resultTable .plan-cell, #resultTable .skip-cell { padding: 6px 4px; font-weight: 600; }
     #resultTable .day-cell::before, #resultTable .plan-cell::before, #resultTable .skip-cell::before { display: none; }
-    #resultTable .rank-cell, #resultTable .score-cell, #resultTable .pass-cell { border-top: 1px solid var(--border); }
+    #resultTable .rank-cell, #resultTable .score-cell { border-top: 1px solid var(--border); }
     #resultTable .skip-cell { align-items: center; }
     .plan-select { font-size: 16px; min-height: 40px; min-width: 72px; }
     .guide-section { padding: 14px; }

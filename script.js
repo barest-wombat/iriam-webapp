@@ -381,7 +381,9 @@ function buildCalendarTable(planByDate) {
     currentTr.tabIndex = 0;
     currentTr.appendChild(createCell('現在', '日', 'day-cell'));
     currentTr.appendChild(createCell('—', '予定', 'plan-cell'));
-    currentTr.appendChild(createCell('', 'スキパ', 'skip-cell'));
+    const currentSkipTd = createCell('', 'スキパ', 'skip-cell');
+    currentSkipTd.appendChild(createSkipWrap());
+    currentTr.appendChild(currentSkipTd);
     appendResultCells(currentTr);
     tbody.appendChild(currentTr);
 
@@ -454,7 +456,9 @@ function buildCalendarTable(planByDate) {
 
         label.appendChild(cb);
         label.appendChild(icon);
-        skipTd.appendChild(label);
+        const skipWrap = createSkipWrap();
+        skipWrap.prepend(label);
+        skipTd.appendChild(skipWrap);
         tr.appendChild(skipTd);
 
         appendResultCells(tr);
@@ -481,10 +485,20 @@ function createCell(text, label, className) {
     return td;
 }
 
+// スキパ列: チケットアイコン（日付行のみ）と集計後の残り枚数を1セルに並べる
+function createSkipWrap() {
+    const wrap = document.createElement('div');
+    wrap.className = 'skip-wrap';
+    const count = document.createElement('span');
+    count.className = 'pass-count';
+    count.textContent = '--';
+    wrap.appendChild(count);
+    return wrap;
+}
+
 function appendResultCells(tr) {
     tr.appendChild(createCell('--', 'ランク', 'rank-cell'));
     tr.appendChild(createCell('--', 'スコア', 'score-cell'));
-    tr.appendChild(createCell('--', '残りパス', 'pass-cell'));
     tr.appendChild(createCell('--', '次の変動', 'forecast-cell'));
 }
 
@@ -635,10 +649,12 @@ function calculateResults() {
 }
 
 function fillResultCells(tr, state) {
-    const [rankTd, scoreTd, passTd, forecastTd] = Array.from(tr.cells).slice(3);
+    const [rankTd, scoreTd, forecastTd] = Array.from(tr.cells).slice(3);
+    const passCount = tr.querySelector('.pass-count');
     tr.classList.toggle('pre-row', !state);
     if (!state) {
-        [rankTd, scoreTd, passTd, forecastTd].forEach(td => { td.textContent = '--'; });
+        [rankTd, scoreTd, forecastTd, passCount].forEach(el => { el.textContent = '--'; });
+        passCount.removeAttribute('aria-label');
         rankTd.className = 'rank-cell';
         tr.classList.remove('selected-row');
         return;
@@ -646,7 +662,8 @@ function fillResultCells(tr, state) {
     rankTd.textContent = state.rank;
     rankTd.className = `rank-cell ${getRankClass(state.rank)}`;
     scoreTd.textContent = `${state.score}`;
-    passTd.textContent = `${state.skipPasses}`;
+    passCount.textContent = `残${state.skipPasses}`;
+    passCount.setAttribute('aria-label', `残りパス${state.skipPasses}枚`);
     forecastTd.textContent = state.forecast;
     if (state.skipUsed) {
         const note = document.createElement('small');
