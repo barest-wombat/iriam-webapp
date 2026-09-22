@@ -213,7 +213,7 @@ h2 {
 }
 
 /* トラック */
-.slider-container input[type="range"]::-webkit-slider-runnable-track::-webkit-slider-runnable-track {
+.slider-container input[type="range"]::-webkit-slider-runnable-track {
     height: 4px;
     border-radius: 2px;
     background: linear-gradient(
@@ -224,7 +224,7 @@ h2 {
 }
 
 /* つまみ */
-.slider-container input[type="range"]::-webkit-slider-thumb::-webkit-slider-thumb {
+.slider-container input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 18px;
     height: 18px;
@@ -235,19 +235,19 @@ h2 {
     margin-top: -7px;
 }
 
-.slider-container input[type="range"]::-moz-range-track::-moz-range-track {
+.slider-container input[type="range"]::-moz-range-track {
     height: 4px;
     border-radius: 2px;
     background: var(--border);
 }
 
-.slider-container input[type="range"]::-moz-range-progress::-moz-range-progress {
+.slider-container input[type="range"]::-moz-range-progress {
     height: 4px;
     border-radius: 2px 0 0 2px;
     background: var(--focus-outline);
 }
 
-.slider-container input[type="range"]::-moz-range-thumb::-moz-range-thumb {
+.slider-container input[type="range"]::-moz-range-thumb {
     width: 18px;
     height: 18px;
     border-radius: 50%;
