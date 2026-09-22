@@ -1,4 +1,4 @@
-const CACHE = 'iriam-rank-v26';
+const CACHE = 'iriam-rank-v27';
 const ASSETS = [
     './',
     './index.html',
@@ -12,7 +12,7 @@ const ASSETS = [
 
 self.addEventListener('install', e => {
     e.waitUntil(
-        caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
+        caches.open(CACHE).then(c => c.addAll(ASSETS.map(url => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting())
     );
 });
 
